@@ -1,0 +1,21 @@
+{
+	"name":"iMSCP/ajaxplorer",
+	"description":"iMSCP tools - AjaxPlorer filemanager",
+	"authors":[
+	{
+		"name":"Charles du Jeu",
+		"email":"contact@cdujeu.me"
+		"homepage":"http://ajaxplorer.info"
+	}
+],
+	"license":"AGPL-3.0+",
+	"keywords":[
+		"imscp",
+		"ajaxplorer",
+		"filemanager",
+		"tools"
+	],
+	"require":{
+		"PHP":">=5.1"
+	}
+}
