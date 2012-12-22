@@ -1,6 +1,7 @@
 {
 	"name":"imscp/ajaxplorer",
 	"description":"iMSCP tools - AjaxPlorer filemanager",
+	"version":"4.2.3",
 	"authors":[
 	{
 		"name":"Charles du Jeu",
