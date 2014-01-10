@@ -166,11 +166,13 @@ class s3AccessWrapper extends fsAccessWrapper {
 	public static function copyFileInStream($path, $stream){
         AJXP_Logger::debug("Should load ".$path);
 		$fp = fopen($path, "r");
-		while (!feof($fp)) {
-			$data = fread($fp, 4096);
-			fwrite($stream, $data, strlen($data));
+		if ($fp !== false) {
+			while (!feof($fp)) {
+				$data = fread($fp, 4096);
+				fwrite($stream, $data, strlen($data));
+			}
+			fclose($fp);
 		}
-		fclose($fp);
 	}
 
 	public static function changeMode($path, $chmodValue){
