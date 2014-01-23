@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 
 /**
@@ -68,6 +68,12 @@ Class.create("User", {
 	 * @var Boolean
 	 */
 	isAdmin:false,
+    /**
+     * @var String
+     */
+    lock : false,
+
+    _parsedJSONCache: $H(),
 
 	/**
 	 * Constructor
@@ -137,11 +143,17 @@ Class.create("User", {
 	 * @returns Mixed
 	 */
 	getPreference : function(prefName, fromJSON){
-	    var value = this.preferences.get(prefName);	
+        if(fromJSON){
+            var test = this._parsedJSONCache.get(prefName);
+            if(test !== undefined) return test;
+        }
+	    var value = this.preferences.get(prefName);
 	    if(fromJSON && value){
 	    	try{
                 if(typeof value == "object") return value;
-		    	return value.evalJSON();
+		    	var parsed = value.evalJSON();
+                this._parsedJSONCache.set(prefName, parsed);
+                return parsed;
 	    	}catch(e){
                 if(console){
                     console.log("Error parsing JSON in preferences ("+prefName+"). You should contact system admin and clear user preferences.");
@@ -169,6 +181,7 @@ Class.create("User", {
 	 */
 	setPreference : function(prefName, prefValue, toJSON){
 		if(toJSON){
+            this._parsedJSONCache.unset(prefName);
 			prefValue = Object.toJSON(prefValue);
 		}
 		this.preferences.set(prefName, prefValue);
@@ -226,10 +239,11 @@ Class.create("User", {
 		if(!this.preferences.get(prefName)) return;
 		var conn = new Connexion();
         conn.setMethod('post');
+        conn.discrete = true;
 		conn.addParameter("get_action", "save_user_pref");
 		conn.addParameter("pref_name_" + 0, prefName);
 		conn.addParameter("pref_value_" + 0, this.preferences.get(prefName));
-		conn.sendAsync();
+        window.setTimeout( conn.sendAsync.bind(conn), 250 );
 	},
 	/**
 	 * Send all preferences to the server. If oldPass, newPass and seed are set, also save pass.
@@ -301,6 +315,9 @@ Class.create("User", {
 			{
 				var attr = userNodes[i].getAttribute("is_admin");
 				if(attr && attr == "1") this.isAdmin = true;
+                if(userNodes[i].getAttribute("lock")){
+                    this.lock = userNodes[i].getAttribute("lock");
+                }
 			}
 		}
 		// Make sure it happens at the end

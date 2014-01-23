@@ -1,22 +1,22 @@
 <?php
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  *
  * Description : configuration file
  * BASIC REPOSITORY CONFIGURATION.
@@ -24,94 +24,111 @@
  * Use the GUI to add new repositories.
  *   + Log in as "admin" and open the "Settings" Repository
  */
-defined('AJXP_EXEC') or die( 'Access not allowed');
+defined('AJXP_EXEC') or die('Access not allowed');
 
+# i-MSCP FTP repository
 $REPOSITORIES["imscp_ftp"] = array(
-	"DISPLAY" => "FTP Server",
+	"DISPLAY" => "i-MSCP FTP Server",
+	"DESCRIPTION_ID" => 'Access your Web files through i-MSCP FTP server',
 	"DRIVER" => "ftp",
 	"DRIVER_OPTIONS" => array(
-	"FTP_HOST" => "localhost",
-	"FTP_PORT" => "21",
-	"DEFAULT_RIGHTS" => "rw",
-	"FIX_PERMISSIONS" => "user",
-	"USE_SESSION_CREDENTIALS" => true,
-	"TMP_UPLOAD" => AJXP_TMP_DIR
+		"FTP_HOST" => "localhost",
+		"FTP_PORT" => "21",
+		"DEFAULT_RIGHTS" => "rw",
+		"FIX_PERMISSIONS" => "user",
+		"USE_SESSION_CREDENTIALS" => true,
+		"TMP_UPLOAD" => AJXP_TMP_DIR
 	)
 );
 
 /*
 $REPOSITORIES[0] = array(
-	"DISPLAY"		=>	"Default Files",
-    "DISPLAY_ID"    =>  430,
-	"AJXP_SLUG"		=>  "default",
-	"DRIVER"		=>	"fs",
+	"DISPLAY" => "Default Files",
+	"DISPLAY_ID" => 430,
+	"DESCRIPTION_ID" => 475,
+	"AJXP_SLUG" => "default",
+	"DRIVER" => "fs",
 	"DRIVER_OPTIONS"=> array(
-		"PATH"			=>	"AJXP_DATA_PATH/files",
-		"CREATE"		=>	true,
-		"RECYCLE_BIN" 	=> 	'recycle_bin',
-		"CHMOD_VALUE"   =>  '0600',
-		"DEFAULT_RIGHTS"=>  "",
+		"PATH" => "AJXP_DATA_PATH/files",
+		"CREATE" => true,
+		"RECYCLE_BIN" => 'recycle_bin',
+		"CHMOD_VALUE" => '0600',
+		"DEFAULT_RIGHTS" => "",
 		"PAGINATION_THRESHOLD" => 500,
 		"PAGINATION_NUMBER" => 200,
-		"META_SOURCES"		=> array(
-			"metastore.serial"=> array(
-				"METADATA_FILE"	=> ".ajxp_meta",
-                "METADATA_FILE_LOCATION" => "infolders"
-            ),
-            "meta.user"     => array(
-				"meta_fields"		=> "comment",
-				"meta_labels"		=> "Comment",
-                "meta_visibility"   => "hidden"
+		"META_SOURCES" => array(
+			"metastore.serial" => array(
+				"METADATA_FILE" => ".ajxp_meta",
+				"METADATA_FILE_LOCATION" => "infolders"
 			),
-            "index.lucene" => array(
-                "index_meta_fields" => "comment"
-            )
+			"meta.user" => array(
+				"meta_fields" => "tags",
+				"meta_labels" => "Tags",
+				"meta_visibility" => "hidden"
+			),
+			"meta.filehasher" => array(),
+			"meta.watch" => array(),
+			"meta.exif" => array(
+				"meta_fields" => "COMPUTED_GPS.GPS_Latitude,COMPUTED_GPS.GPS_Longitude",
+				"meta_labels" => "Latitude,Longitude"
+			),
+			"index.lucene" => array(
+				"index_meta_fields" => "tags"
+			)
 		)
-	),
-
+	)
 );
 */
 
 /*
 $REPOSITORIES[1] = array(
-	"DISPLAY"		=>	"My Files",
-    "DISPLAY_ID"    =>  432,
-	"AJXP_SLUG"		=>  "my-files",
-	"DRIVER"		=>	"fs",
+	"DISPLAY" => "My Files",
+	"DISPLAY_ID" => 432,
+	"DESCRIPTION_ID" => 476,
+	"AJXP_SLUG" => "my-files",
+	"DRIVER" => "fs",
 	"DRIVER_OPTIONS"=> array(
-		"PATH"			=>	"AJXP_DATA_PATH/personal/AJXP_USER",
-		"CREATE"		=>	true,
-		"RECYCLE_BIN" 	=> 	'recycle_bin',
-		"CHMOD_VALUE"   =>  '0600',
-		"DEFAULT_RIGHTS"=>  "rw",
+		"PATH" => "AJXP_DATA_PATH/personal/AJXP_USER",
+		"CREATE" => true,
+		"RECYCLE_BIN" 	=> 'recycle_bin',
+		"CHMOD_VALUE"   => '0600',
+		"DEFAULT_RIGHTS"=> "rw",
 		"PAGINATION_THRESHOLD" => 500,
 		"PAGINATION_NUMBER" => 200,
-		"META_SOURCES"		=> array(
+		"META_SOURCES" => array(
 			"metastore.serial"=> array(
-				"METADATA_FILE"	=> ".ajxp_meta",
-                "METADATA_FILE_LOCATION" => "infolders"
-            ),
-            "meta.user"     => array(
-				"meta_fields"		=> "comment",
-				"meta_labels"		=> "Comment",
-                "meta_visibility"   => "hidden"
+				"METADATA_FILE" => ".ajxp_meta",
+				"METADATA_FILE_LOCATION" => "infolders"
 			),
-            "index.lucene" => array(
-                "index_meta_fields" => "comment"
-            )
+			"meta.user" => array(
+				"meta_fields" => "tags",
+				"meta_labels" => "Tags",
+				"meta_visibility" => "hidden"
+			),
+			"meta.filehasher" => array(),
+			"meta.watch" => array(),
+			"meta.exif" => array(
+				"meta_fields" => "COMPUTED_GPS.GPS_Latitude,COMPUTED_GPS.GPS_Longitude",
+				"meta_labels" => "Latitude,Longitude"
+			),
+			"index.lucene" => array(
+				"index_meta_fields" => "tags",
+				"repository_specific_keywords" => "AJXP_USER",
+			)
 		)
-	),
-
+	)
 );
 */
+
 /*
 // DO NOT REMOVE THIS!
-// SHARE ELEMENTS
-$REPOSITORIES["ajxp_shared"] = array(
-	"DISPLAY"		=>	"Shared Elements",
-	"DISPLAY_ID"		=>	"363",
-	"DRIVER"		=>	"ajxp_shared",
-	"DRIVER_OPTIONS"=> array(
+// USER DASHBOARD
+$REPOSITORIES["ajxp_user"] = array(
+	"DISPLAY" => "My Dashboard",
+	"DISPLAY_ID" => "user_dash.title",
+	"DESCRIPTION_ID" => "user_dash.desc",
+	"DRIVER" => "ajxp_user",
+	"DRIVER_OPTIONS" => array(
 		"DEFAULT_RIGHTS" => "rw"
 	)
 );
@@ -120,62 +137,48 @@ $REPOSITORIES["ajxp_shared"] = array(
 /*
 // ADMIN REPOSITORY
 $REPOSITORIES["ajxp_conf"] = array(
-	"DISPLAY"		=>	"Settings",
-	"DISPLAY_ID"		=>	"165",
-	"DRIVER"		=>	"ajxp_conf",
+	"DISPLAY" => "Settings",
+	"DISPLAY_ID" => "165",
+	"DESCRIPTION_ID" => "506",
+	"DRIVER" => "ajxp_conf",
 	"DRIVER_OPTIONS"=> array()
 );
 */
 
 /*
 $REPOSITORIES["fs_template"] = array(
-	"DISPLAY"		=>	"Sample Template",
-    "DISPLAY_ID"    =>  431,
-	"IS_TEMPLATE"	=>  true,
-	"DRIVER"		=>	"fs",
+	"DISPLAY" => "Sample Template",
+	"DISPLAY_ID" =>  431,
+	"IS_TEMPLATE" =>  true,
+	"DRIVER" => "fs",
 	"DRIVER_OPTIONS"=> array(
-		"CREATE"		=>	true,
-		"RECYCLE_BIN" 	=> 	'recycle_bin',
-		"CHMOD_VALUE"   =>  '0600',
+		"CREATE" => true,
+		"RECYCLE_BIN" => 'recycle_bin',
+		"CHMOD_VALUE" => '0600',
 		"PAGINATION_THRESHOLD" => 500,
 		"PAGINATION_NUMBER" => 200,
-        "PURGE_AFTER"       => 0,
-        "CHARSET"           => "",
-		"META_SOURCES"		=> array(
-			"metastore.serial"=> array(
-				"METADATA_FILE"	=> ".ajxp_meta",
-                "METADATA_FILE_LOCATION" => "infolders"
-            ),
-            "meta.user"     => array(
-				"meta_fields"		=> "comment",
-				"meta_labels"		=> "Comment",
-                "meta_visibility"   => "hidden"
+		"PURGE_AFTER" => 0,
+		"CHARSET" => "",
+		"META_SOURCES" => array(
+			"metastore.serial" => array(
+				"METADATA_FILE" => ".ajxp_meta",
+				"METADATA_FILE_LOCATION" => "infolders"
 			),
-            "index.lucene" => array(
-                "index_meta_fields" => "comment"
-            )
+			"meta.user" => array(
+				"meta_fields" => "tags",
+				"meta_labels" => "Tags",
+				"meta_visibility" => "hidden"
+			),
+			"meta.filehasher" => array(),
+			"meta.watch" => array(),
+			"meta.exif" => array(
+				"meta_fields" => "COMPUTED_GPS.GPS_Latitude,COMPUTED_GPS.GPS_Longitude",
+				"meta_labels" => "Latitude,Longitude"
+			),
+			"index.lucene" => array(
+				"index_meta_fields" => "tags"
+			)
 		)
-	),
-
-);
-*/
-
-// UNCOMMENT THIS TO SET UP A WEBFTP INSTALL
-// SEE conf/templates/bootstrap_plugins.webftp.php
-/*
-$REPOSITORIES["predefined_ftp"] = array(
-
-    "DISPLAY"    => "FTP Server",
-    "DRIVER"    => "ftp",
-    "DRIVER_OPTIONS" => array(
-        // SET THIS TO true IF YOU WANT THE USER TO CONNECT TO ANY FTP SERVER
-        "DYNAMIC_FTP"               => false,
-        // OR USE THESE PARAMETERS TO PREDEFINE AN FTP SERVER
-        //"FTP_HOST"                  => "ftp.yourserver.com",
-        //"FTP_PORT"                  => "21",
-        "DEFAULT_RIGHTS"            => "rw",
-        "USE_SESSION_CREDENTIALS"   => true,
-    )
-
+	)
 );
 */

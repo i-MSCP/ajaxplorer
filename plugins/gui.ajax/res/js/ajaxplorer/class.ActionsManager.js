@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 
 /**
@@ -69,7 +69,9 @@ Class.create("ActionsManager", {
 		this.oUser = oUser;
 		if(oUser != null && ajaxplorer  && oUser.id != 'guest' && oUser.getPreference('lang') != null 
 			&& oUser.getPreference('lang') != "" 
-			&& oUser.getPreference('lang') != ajaxplorer.currentLanguage) 
+			&& oUser.getPreference('lang') != ajaxplorer.currentLanguage
+            && !oUser.lock
+            )
 		{
 			ajaxplorer.loadI18NMessages(oUser.getPreference('lang'));
 		}
@@ -78,19 +80,20 @@ Class.create("ActionsManager", {
 	/**
 	 * Filter the actions given the srcElement passed as arguments. 
 	 * @param srcElement String An identifier among selectionContext, genericContext, a webfx object id
+     * @param ignoreGroups Array a list of groups to ignore
 	 * @returns Array
 	 */
-	getContextActions: function(srcElement)
+	getContextActions: function(srcElement, ignoreGroups)
 	{		
 		var actionsSelectorAtt = 'selectionContext';
 		if(srcElement.id && (srcElement.hasClassName('table_rows_container') ||  srcElement.hasClassName('selectable_div')))
 		{
 			actionsSelectorAtt = 'genericContext';
 		}
-		else if(srcElement.id.substring(0,5)=='webfx')
-		{
-			actionsSelectorAtt = 'directoryContext';
-		}
+		//else if(srcElement.id.substring(0,5)=='webfx')
+		//{
+		//	actionsSelectorAtt = 'directoryContext';
+		//}
 		var contextActions = new Array();
 		var defaultGroup;
         var contextActionsGroup = {};
@@ -101,15 +104,12 @@ Class.create("ActionsManager", {
 			if(actionsSelectorAtt == 'directoryContext' && !action.context.dir) return;
 			if(actionsSelectorAtt == 'genericContext' && action.context.selection) return;
 			if(action.contextHidden || action.deny) return;
-            /*
-			if(crtGroup && crtGroup != action.context.actionBarGroup){
-				contextActions.push({separator:true});
-			}
-			*/
-            if(!contextActionsGroup[action.context.actionBarGroup]){
-                contextActionsGroup[action.context.actionBarGroup] = $A();
-            }
-			var isDefault = false;
+            $A(action.context.actionBarGroup.split(',')).each(function(barGroup){
+                if(!contextActionsGroup[barGroup]){
+                    contextActionsGroup[barGroup] = $A();
+                }
+            });
+            var isDefault = false;
 			if(actionsSelectorAtt == 'selectionContext'){
 				// set default in bold
 				var userSelection = ajaxplorer.getUserSelection();
@@ -123,28 +123,33 @@ Class.create("ActionsManager", {
 					}
 				}
 			}
-			var menuItem = {
+            $A(action.context.actionBarGroup.split(',')).each(function(barGroup){
+                var menuItem = {
 				name:action.getKeyedText(),
 				alt:action.options.title,
                 action_id:action.options.name,
 				image:resolveImageSource(action.options.src, '/images/actions/ICON_SIZE', 16),
 				isDefault:isDefault,
 				callback:function(e){this.apply();}.bind(action)
-			};
-			if(action.options.subMenu){
-				menuItem.subMenu = [];
-				if(action.subMenuItems.staticOptions){
-					menuItem.subMenu = action.subMenuItems.staticOptions;
-				}
-				if(action.subMenuItems.dynamicBuilder){
-					menuItem.subMenuBeforeShow = action.subMenuItems.dynamicBuilder;
-				}
-			}
-			//contextActions.push(menuItem);
-            contextActionsGroup[action.context.actionBarGroup].push(menuItem);
-            if(isDefault){
-    			defaultGroup = action.context.actionBarGroup;
-            }
+                };
+                if(action.options.icon_class){
+                    menuItem.icon_class = action.options.icon_class;
+                }
+                if(action.options.subMenu){
+                    menuItem.subMenu = [];
+                    if(action.subMenuItems.staticOptions){
+                        menuItem.subMenu = action.subMenuItems.staticOptions;
+                    }
+                    if(action.subMenuItems.dynamicBuilder){
+                        menuItem.subMenuBeforeShow = action.subMenuItems.dynamicBuilder;
+                    }
+                }
+                //contextActions.push(menuItem);
+                contextActionsGroup[barGroup].push(menuItem);
+                if(isDefault){
+                    defaultGroup = barGroup;
+                }
+            });
 		}.bind(this));
         var first = true;
         contextActionsGroup = $H(contextActionsGroup);
@@ -155,6 +160,9 @@ Class.create("ActionsManager", {
 		contextActionsGroup.each(function(pair){
             if(!first){
                 contextActions.push({separator:true});
+            }
+            if(ignoreGroups && ignoreGroups.indexOf(pair.key) != -1){
+                return;
             }
             first = false;
             pair.value.each(function(mItem){
@@ -271,7 +279,7 @@ Class.create("ActionsManager", {
 	 */
 	applyDragMove: function(fileName, destDir, destNodeName, copy)
 	{
-		if((!copy && !this.defaultActions.get('dragndrop')) || 
+		if((!copy && (!this.defaultActions.get('dragndrop') || this.getDefaultAction('dragndrop').deny)) ||
 			(copy && (!this.defaultActions.get('ctrldragndrop')||this.getDefaultAction('ctrldragndrop').deny))){
 			return;
 		}
@@ -304,13 +312,7 @@ Class.create("ActionsManager", {
 		}else{
 			connexion.addParameter('get_action', this.defaultActions.get('dragndrop'));
 		}
-		if(fileName != null){
-			connexion.addParameter('file', fileName);
-		}else{
-			for(var i=0; i<fileNames.length;i++){
-				connexion.addParameter('file_'+i, fileNames[i]);
-			}
-		}
+        connexion.addParameter('nodes[]', fileNames);
 		connexion.addParameter('dest', destDir);
 		connexion.addParameter('dir', ajaxplorer.getContextNode().getPath());		
 		connexion.onComplete = function(transport){this.parseXmlMessage(transport.responseXML);}.bind(this);
@@ -365,7 +367,6 @@ Class.create("ActionsManager", {
 			connexion.setMethod('POST');
 		}
 		$(formName).getElements().each(function(fElement){
-			// OPERA : ADDS 'http://www.yourdomain.com/ajaxplorer/' to the action attribute value
 			var fValue = fElement.getValue();
 			if(fElement.name == 'get_action' && fValue.substr(0,4) == 'http'){			
 				fValue = getBaseName(fValue);
@@ -427,6 +428,66 @@ Class.create("ActionsManager", {
 					ajaxplorer.reloadRepositoriesList();
 				}
 			}
+            else if(childs[i].nodeName == 'nodes_diff'){
+                var dm = ajaxplorer.getContextHolder();
+                var removes = XPathSelectNodes(childs[i], "remove/tree");
+                var adds = XPathSelectNodes(childs[i], "add/tree");
+                var updates = XPathSelectNodes(childs[i], "update/tree");
+                if(removes && removes.length){
+                    removes.each(function(r){
+                        var p = r.getAttribute("filename");
+                        var fake = new AjxpNode(p);
+                        var n = fake.findInArbo(dm.getRootNode(), undefined);
+                        if(n){
+                            n.getParent().removeChild(n);
+                        }
+                    });
+                }
+                if(adds && adds.length && dm.getAjxpNodeProvider().parseAjxpNode){
+                    adds.each(function(tree){
+                        var newNode = dm.getAjxpNodeProvider().parseAjxpNode(tree);
+                        var parentFake = new AjxpNode(getRepName(newNode.getPath()));
+                        var parent = parentFake.findInArbo(dm.getRootNode(), undefined);
+                        if(!parent && getRepName(newNode.getPath()) == "") parent = dm.getRootNode();
+                        if(parent){
+                            parent.addChild(newNode);
+                            if(dm.getContextNode() == parent){
+                                dm.setSelectedNodes([newNode], {});
+                            }
+                        }
+                    });
+                }
+                if(updates && updates.length && dm.getAjxpNodeProvider().parseAjxpNode){
+                    updates.each(function(tree){
+                        var newNode = dm.getAjxpNodeProvider().parseAjxpNode(tree);
+                        var original = newNode.getMetadata().get("original_path");
+                        if(original && original != newNode.getPath()
+                            && getRepName(original) != getRepName(newNode.getPath())){
+                            // Node was really moved to another folder
+                            var fake = new AjxpNode(original);
+                            var n = fake.findInArbo(dm.getRootNode(), undefined);
+                            if(n){
+                                n.getParent().removeChild(n);
+                            }
+                            var parentFake = new AjxpNode(getRepName(newNode.getPath()));
+                            var parent = parentFake.findInArbo(dm.getRootNode(), undefined);
+                            if(!parent && getRepName(newNode.getPath()) == "") parent = dm.getRootNode();
+                            if(parent){
+                                newNode.getMetadata().set("original_path", undefined);
+                                parent.addChild(newNode);
+                            }
+                        }else{
+                            var fake = new AjxpNode(original);
+                            var n = fake.findInArbo(dm.getRootNode(), undefined);
+                            if(n){
+                                newNode._isLoaded = n._isLoaded;
+                                n.replaceBy(newNode, "override");
+                                dm.setSelectedNodes([n], {});
+                            }
+                        }
+                    });
+                }
+            }
 			else if(childs[i].tagName == "logging_result")
 			{
 				if(childs[i].getAttribute("secure_token")){
@@ -442,6 +503,7 @@ Class.create("ActionsManager", {
                 var errorId = false;
 				if(result == '1')
 				{
+                    modal.setCloseValidation(null);
 					hideLightBox(true);
 					if(childs[i].getAttribute('remember_login') && childs[i].getAttribute('remember_pass')){
 						var login = childs[i].getAttribute('remember_login');
@@ -522,25 +584,14 @@ Class.create("ActionsManager", {
 	 * by triggering ajaxplorer:actions_refreshed event.
 	 */
 	fireContextChange: function(){
-		var crtRecycle = false;
-		var crtInZip = false;
-		var crtIsRoot = false;
-		var crtMime;
-		
+		var crtNode;
 		if(ajaxplorer && ajaxplorer.getContextNode()){ 
 			var crtNode = ajaxplorer.getContextNode();
-			crtRecycle = (crtNode.getAjxpMime() == "ajxp_recycle");
-			crtInZip = crtNode.hasAjxpMimeInBranch("ajxp_browsable_archive");
-			crtIsRoot = crtNode.isRoot();
-			crtMime = crtNode.getAjxpMime();			
-		}	
+		}
 		this.actions.each(function(pair){			
 			pair.value.fireContextChange(this.usersEnabled, 
 									 this.oUser, 									 
-									 crtRecycle, 
-									 crtInZip, 
-									 crtIsRoot,
-									 crtMime);
+									 crtNode);
 		}.bind(this));
 		document.fire("ajaxplorer:actions_refreshed");
 	},

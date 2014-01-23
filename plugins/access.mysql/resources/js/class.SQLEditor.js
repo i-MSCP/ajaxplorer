@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 Class.create("SQLEditor", {
 
@@ -166,11 +166,11 @@ Class.create("SQLEditor", {
 	displayReplicationChooser : function(){
 		var chooser = $('replication_chooser').cloneNode(true).setStyle({display:'block'});
 		this.oForm.insert(chooser);
-		var button = chooser.select('input[id="toNext"]')[0];
+		var button = chooser.down('input[id="toNext"]');
 		button.observe('click', function(e){
 			Event.stop(e);
-			this.newTableName = chooser.select('input[id="table_name"]')[0].value;
-			var fieldsNumber = parseInt(chooser.select('input[id="fields_number"]')[0].value);
+			this.newTableName = chooser.down('input[id="table_name"]').getValue();
+			var fieldsNumber = parseInt(chooser.down('input[id="fields_number"]').getValue());
 			if(this.newTableName && fieldsNumber){
 				chooser.remove();
 				this.displayTableEditorForm(fieldsNumber);
@@ -178,7 +178,7 @@ Class.create("SQLEditor", {
 				alert('Missing parameters!');
 			}
 		}.bind(this));
-		cancelButton = chooser.select('input[id="can"]')[0];
+		var cancelButton = chooser.down('input[id="can"]');
 		cancelButton.observe('click', function(e){
 			hideLightBox();
 			modal.close();
@@ -270,7 +270,7 @@ Class.create("SQLEditor", {
 			this.oForm.insert(this.createFieldSet('Step 2: Edit columns for table \"'+this.newTableName+'"', templateTable));
 		}
 		var fManager = new FormManager();
-		fManager.replicateRow(templateRow, numberReplicates, this.oForm);
+		fManager.replicateRow(templateRow, numberReplicates - 1 , this.oForm);
 		if(fields && values){
 			fManager.fetchMultipleValueToForm(this.oForm, fields, values);
 		}

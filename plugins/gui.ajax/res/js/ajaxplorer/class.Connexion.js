@@ -1,27 +1,29 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 
 /**
- * AjaXplorer encapsulation of Ajax.Request
+ * Pydio encapsulation of Ajax.Request
  */
 Class.create("Connexion", {
+
+    discrete : false,
 
 	/**
 	 * Constructor
@@ -42,7 +44,14 @@ Class.create("Connexion", {
 	 * @param paramValue String
 	 */
 	addParameter : function (paramName, paramValue){
-		this._parameters.set(paramName, paramValue);	
+        if(this._parameters.get(paramName) && paramName.endsWith('[]')){
+            var existing =  this._parameters.get(paramName);
+            if(Object.isString(existing)) existing = [existing];
+            existing.push(paramValue);
+            this._parameters.set(paramName, existing);
+        }else{
+            this._parameters.set(paramName, paramValue);
+        }
 	},
 	
 	/**
@@ -74,12 +83,16 @@ Class.create("Connexion", {
      * Show a small loader
      */
     showLoader : function(){
+        if(this.discrete) return;
         if(!$('AjxpConnexion-loader') && window.ajxpBootstrap.parameters.get("theme")){
-            var img = new Element("img", {
-                src:ajxpResourcesFolder+"/images/ajxp-connexion-loader.gif",
+            var span = new Element("span", {
                 id:'AjxpConnexion-loader',
                 style:'position:absolute;top:2px;right:2px;z-index:40000;display:none;'});
-            $$('body')[0].insert(img);
+            var img = new Element("img", {
+                src:ajxpResourcesFolder+"/images/loadingImage.gif"
+            });
+            span.insert(img);
+            $$('body')[0].insert(span);
         }
         if($('AjxpConnexion-loader')) $('AjxpConnexion-loader').show();
     },
@@ -88,6 +101,7 @@ Class.create("Connexion", {
      * Hide a small loader
      */
     hideLoader : function(){
+        if(this.discrete) return;
         if($('AjxpConnexion-loader'))$('AjxpConnexion-loader').hide();
     },
 
@@ -97,13 +111,14 @@ Class.create("Connexion", {
 	sendAsync : function(){	
 		this.addSecureToken();
         this.showLoader();
-		new Ajax.Request(this._baseUrl, 
+		var t = new Ajax.Request(this._baseUrl,
 		{
 			method:this._method,
 			onComplete:this.applyComplete.bind(this),
 			parameters:this._parameters.toObject()
 		});
-	},
+        try {if(Prototype.Browser.IE10) t.transport.responseType =  'msxml-document'; } catch(e){}
+    },
 	
 	/**
 	 * Send synchronously
@@ -111,14 +126,15 @@ Class.create("Connexion", {
 	sendSync : function(){	
 		this.addSecureToken();
         this.showLoader();
-		new Ajax.Request(this._baseUrl, 
+		var t = new Ajax.Request(this._baseUrl,
 		{
 			method:this._method,
 			asynchronous: false,
 			onComplete:this.applyComplete.bind(this),
-			parameters:this._parameters.toObject()
+			parameters:this._parameters.toObject(),
+            msxmldoctype: true
 		});
-	},
+    },
 	
 	/**
 	 * Apply the complete callback, try to grab maximum of errors
@@ -139,7 +155,7 @@ Class.create("Connexion", {
 		var headers = transport.getAllResponseHeaders();
 		if(Prototype.Browser.Gecko && transport.responseXML && transport.responseXML.documentElement && transport.responseXML.documentElement.nodeName=="parsererror"){
 			message = "Parsing error : \n" + transport.responseXML.documentElement.firstChild.textContent;					
-		}else if(Prototype.Browser.IE && transport.responseXML.parseError && transport.responseXML.parseError.errorCode != 0){
+		}else if(Prototype.Browser.IE && transport.responseXML && transport.responseXML.parseError && transport.responseXML.parseError.errorCode != 0){
 			message = "Parsing Error : \n" + transport.responseXML.parseError.reason;
 		}else if(headers.indexOf("text/xml")>-1 && transport.responseXML == null){
 			message = "Unknown Parsing Error!";
@@ -176,12 +192,13 @@ Class.create("Connexion", {
 						alert(messageType+":"+messageContent);
 					}
 				}
+                messageNode.parentNode.removeChild(messageNode);
 			}
 		}
 		if(this.onComplete){
 			this.onComplete(transport);
 		}
-		document.fire("ajaxplorer:server_answer");
+		document.fire("ajaxplorer:server_answer", this);
 	},
 	
 	/**

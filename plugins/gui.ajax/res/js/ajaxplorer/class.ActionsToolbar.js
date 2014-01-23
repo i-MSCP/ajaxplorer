@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 
 /**
@@ -34,7 +34,9 @@ Class.create("ActionsToolbar", {
 		this.options = Object.extend({
 			buttonRenderer : 'this',
             skipBubbling: false,
-			toolbarsList : $A(['default', 'put', 'get', 'change', 'user', 'remote'])
+			toolbarsList : $A(['default', 'put', 'get', 'change', 'user', 'remote']),
+            groupOtherToolbars : $A([]),
+            skipCarousel : false
 		}, options || {});
 		var renderer = this.options.buttonRenderer;
 		if(renderer == 'this'){
@@ -43,27 +45,34 @@ Class.create("ActionsToolbar", {
 			this.options.buttonRenderer = new renderer();
 		}
 		this.toolbars = $H();
-		this.initCarousel();
+        if(!this.options.skipCarousel){
+            this.initCarousel();
+        }
         if(this.options.styles){
             this.buildActionBarStylingMenu();
             this.style = this.options.defaultStyle;
-            document.observe("ajaxplorer:user_logged", function(){
+            this.styleObserver = function(){
                 if(ajaxplorer.user && ajaxplorer.user.getPreference("action_bar_style")){
                     this.style = ajaxplorer.user.getPreference("action_bar_style");
                 }else{
                     this.style = this.options.defaultStyle;
                 }
                 this.switchStyle(false, true);
-            }.bind(this));
+            }.bind(this);
+            document.observe("ajaxplorer:user_logged", this.styleObserver);
         }
 		attachMobileScroll(oElement.id, "horizontal");
-		document.observe("ajaxplorer:actions_loaded", this.actionsLoaded.bind(this));
-		document.observe("ajaxplorer:actions_refreshed", this.refreshToolbarsSeparator.bind(this));
+
+        this.actionsLoadedObserver = this.actionsLoaded.bind(this);
+        this.refreshToolbarObserver = this.refreshToolbarsSeparator.bind(this);
         this.componentConfigHandler = function(event){
             if(event.memo.className == "ActionsToolbar"){
                 this.parseComponentConfig(event.memo.classConfig.get('all'));
             }
         }.bind(this);
+
+        document.observe("ajaxplorer:actions_loaded", this.actionsLoadedObserver);
+        document.observe("ajaxplorer:actions_refreshed", this.refreshToolbarObserver);
         document.observe("ajaxplorer:component_config_changed", this.componentConfigHandler );
 
 	},
@@ -72,7 +81,11 @@ Class.create("ActionsToolbar", {
 		return this.element;
 	},
 	destroy : function(){
-		
+		this.emptyToolbars();
+        document.stopObserving("ajaxplorer:actions_loaded", this.actionsLoadedObserver);
+        document.stopObserving("ajaxplorer:actions_refreshed", this.refreshToolbarObserver);
+        document.stopObserving("ajaxplorer:component_config_changed", this.componentConfigHandler );
+        if(this.styleObserver) document.stopObserving("ajaxplorer:user_logged", this.styleObserver);
 	},
 
     /**
@@ -105,16 +118,66 @@ Class.create("ActionsToolbar", {
 	 * Initialize all toolbars
 	 */
 	initToolbars: function () {
+        this.registeredButtons = $A();
+
 		this.actions.each(function(pair){
 			var action = pair.value;
 			var actionName = pair.key;
 			if(action.context.actionBar){
-				if(this.toolbars.get(action.context.actionBarGroup) == null){
-					this.toolbars.set(action.context.actionBarGroup, new Array());
-				}
-				this.toolbars.get(action.context.actionBarGroup).push(actionName);
-			}			
+                $A(action.context.actionBarGroup.split(",")).each(function(barGroup){
+                    if(this.toolbars.get(barGroup) == null){
+                        this.toolbars.set(barGroup, new Array());
+                    }
+                    this.toolbars.get(barGroup).push(actionName);
+                }.bind(this));
+			}
 		}.bind(this));
+
+        // Regroup actions artificially
+        if(this.options.groupOtherToolbars.length){
+            var submenuItems = [];
+            this.options.groupOtherToolbars.each(function(otherToolbar){
+
+                var otherActions = this.toolbars.get(otherToolbar);
+                if(!otherActions) return;
+                otherActions.each(function(act){
+                    submenuItems.push({actionId:act});
+                });
+                if(otherToolbar != this.options.groupOtherToolbars.last()){
+                    submenuItems.push({separator:true});
+                }
+
+            }.bind(this) );
+            var moreAction = new Action({
+                name:'group_more_action',
+                src:'view_icon.png',
+                icon_class:'icon-none',
+                /*
+                text_id:150,
+                title_id:151,
+                */
+                text:MessageHash[456],
+                title:MessageHash[456],
+                hasAccessKey:false,
+                subMenu:true,
+                callback:function(){}
+            }, {
+                selection:false,
+                dir:true,
+                actionBar:true,
+                actionBarGroup:'put',
+                contextMenu:false,
+                infoPanel:false
+
+            }, {}, {}, {dynamicItems: submenuItems});
+            moreAction.setManager(ajaxplorer.actionBar);
+            this.actions.set("group_more_action", moreAction);
+            try{
+                this.toolbars.get($A(this.options.toolbarsList).last()).push("group_more_action");
+            }catch (e){}
+
+        }
+
 		var crtCount = 0;
 		var toolbarsList = this.options.toolbarsList;
 		toolbarsList.each(function(toolbar){			
@@ -147,7 +210,9 @@ Class.create("ActionsToolbar", {
 			if(hasVisibleActions) sep.show();
 			else sep.hide();
 		}.bind(this) );
-		this.refreshSlides();
+        if(!this.options.skipCarousel){
+		    this.refreshSlides();
+        }
 	},
 	
 	/**
@@ -159,11 +224,11 @@ Class.create("ActionsToolbar", {
 		if(!this.toolbars.get(toolbar)) {
 			return '';
 		}
-		var toolEl = $(toolbar+'_toolbar');		
+		var toolEl = this.element.down('#'+toolbar+'_toolbar');
 		if(!toolEl){ 
 			var toolEl = new Element('div', {
 				id: toolbar+'_toolbar',
-				style: 'display:inline;'
+                className:'toolbarGroup'
 			});
 		}
 		toolEl.actionsCount = 0;
@@ -181,6 +246,16 @@ Class.create("ActionsToolbar", {
 	 * Remove all toolbars
 	 */
 	emptyToolbars: function(){
+        if(this.registeredButtons){
+            this.registeredButtons.each(function(button){
+                if(button.ACTION && button.OBSERVERS){
+                    button.OBSERVERS.each(function(pair){
+                        button.ACTION.stopObserving(pair.key, pair.value);
+                    });
+                    try{button.remove();}catch(e){}
+                }
+            });
+        }
 		if(this.element.subMenus){
 			this.element.subMenus.invoke("destroy");
 		}
@@ -218,8 +293,8 @@ Class.create("ActionsToolbar", {
 		this.inner.select('a').each(function(a){
 			if(a.visible()) allSlides.push(a);
 		});
-		this.carousel.refreshSlides(allSlides);
-		this.resize();		
+        this.carousel.refreshSlides(allSlides);
+		this.resize();
 	},
 	
 	/**
@@ -243,28 +318,43 @@ Class.create("ActionsToolbar", {
         if(this.options.stylesImgSizes && this.style && this.options.stylesImgSizes[this.style]){
             icSize = this.options.stylesImgSizes[this.style];
         }
-		var imgPath = resolveImageSource(action.options.src,action.__DEFAULT_ICON_PATH, icSize);
-		var img = new Element('img', {
-			id:action.options.name +'_button_icon',
-            className:'actionbar_button_icon',
-			src:imgPath,
-			width:icSize,
-			height:icSize,
-			border:0,
-			alt:action.options.title,
-			title:action.options.title,
-            'data-action-src':action.options.src
-		});
+        var img;
+        if(action.options.icon_class && window.ajaxplorer.currentThemeUsesIconFonts){
+            img = new Element('span', {
+                className:action.options.icon_class + ' ajxp_icon_span',
+                title:action.options.title
+            });
+        }else{
+            var imgPath = resolveImageSource(action.options.src,action.__DEFAULT_ICON_PATH, icSize);
+            img = new Element('img', {
+                id:action.options.name +'_button_icon',
+                className:'actionbar_button_icon',
+                src:imgPath,
+                width:icSize,
+                height:icSize,
+                border:0,
+                alt:action.options.title,
+                title:action.options.title,
+                'data-action-src':action.options.src
+            });
+        }
 		var titleSpan = new Element('span', {id:action.options.name+'_button_label',className:'actionbar_button_label'});
 		button.insert(img).insert(titleSpan.update(action.getKeyedText()));
 		//this.elements.push(this.button);
 		if(action.options.subMenu){
-			this.buildActionBarSubMenu(button, action);// TODO
-            button.setStyle({position:'relative'});
-			var arrowDiv = new Element('div', {className:'actionbar_arrow_div'});
-			arrowDiv.insert(new Element('img',{src:ajxpResourcesFolder+'/images/arrow_down.png',height:6,width:10,border:0}));
-			arrowDiv.imgRef = img;
-            button.insert(arrowDiv);
+			this.buildActionBarSubMenu(button, action);
+            if(window.ajaxplorer.currentThemeUsesIconFonts){
+
+                button.insert(new Element('span', {className:'icon-caret-down ajxp_icon_arrow'}));
+
+            }else{
+                button.setStyle({position:'relative'});
+                var arrowDiv = new Element('div', {className:'actionbar_arrow_div'});
+                arrowDiv.insert(new Element('img',{src:ajxpResourcesFolder+'/images/arrow_down.png',height:6,width:10,border:0}));
+                arrowDiv.imgRef = img;
+                button.insert(arrowDiv);
+            }
+
 		}else if(!this.options.skipBubbling) {
 			button.observe("mouseover", function(){
 				this.buttonStateHover(button, action);
@@ -278,6 +368,10 @@ Class.create("ActionsToolbar", {
         }
 		button.hide();
 		this.attachListeners(button, action);
+        if(!this.registeredButtons){
+            this.registeredButtons = $A();
+        }
+        this.registeredButtons.push(button);
 		return button;
 		
 	},
@@ -288,6 +382,31 @@ Class.create("ActionsToolbar", {
 	 * @param action Action The action to observe.
 	 */
 	attachListeners : function(button, action){
+
+        if(this.options.attachToNode){
+            action.fireContextChange(ajaxplorer.usersEnabled, ajaxplorer.user, this.options.attachToNode.getParent());
+            var fakeDm = new AjxpDataModel();
+            fakeDm.setSelectedNodes([this.options.attachToNode]);
+            action.fireSelectionChange(fakeDm);
+            if(action.deny) {
+                button.hide();
+            }  else {
+                button.show();
+            }
+            button.ACTION = action;
+            return;
+        }
+
+
+        button.OBSERVERS = $H();
+        button.OBSERVERS.set("hide", function(){button.hide()}.bind(this));
+        button.OBSERVERS.set("show", function(){button.show()}.bind(this));
+
+        button.OBSERVERS.each(function(pair){
+            action.observe(pair.key, pair.value);
+        });
+        button.ACTION = action;
+
 		action.observe("hide", function(){
 			button.hide();
 		}.bind(this));
@@ -322,13 +441,15 @@ Class.create("ActionsToolbar", {
 		var subMenu = new Proto.Menu({
 		  mouseClick:"over",
 		  anchor: button, // context menu will be shown when element with class name of "contextmenu" is clicked
-		  className: 'menu desktop toolbarmenu', // this is a class which will be attached to menu container (used for css styling)
-		  topOffset : 0,
-		  leftOffset : 0,	
+		  className: 'menu desktop toolbarmenu' + (this.options.submenuClassName ? ' ' + this.options.submenuClassName : ''), // this is a class which will be attached to menu container (used for css styling)
+		  topOffset : (this.options.submenuOffsetTop ? this.options.submenuOffsetTop : 0),
+		  leftOffset : (this.options.submenuOffsetLeft ? this.options.submenuOffsetLeft : 0),
 		  parent : this.element,	 
 		  menuItems: action.subMenuItems.staticOptions || [],
+          menuTitle : action.options.text,
 		  fade:true,
-		  zIndex:2000		  
+		  zIndex:2000,
+          position : (this.options.submenuPosition ? this.options.submenuPosition : "bottom")
 		});	
 		var titleSpan = button.select('span')[0];	
 		subMenu.options.beforeShow = function(e){
@@ -484,6 +605,9 @@ Class.create("ActionsToolbar", {
 	 * Resize the widget. May trigger the apparition/disparition of the Carousel buttons.
 	 */
 	resize : function(){
+        if(this.options.skipCarousel) {
+            return;
+        }
 		var innerSize = 0;
 		var parentWidth = $(this.outer).parentNode.getWidth();
 		if(Prototype.Browser.IE){

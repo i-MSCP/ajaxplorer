@@ -15,6 +15,8 @@ var Prototype = {
     var isOpera = Object.prototype.toString.call(window.opera) == '[object Opera]';
     return {
       IE:             !!window.attachEvent && !isOpera,
+      IE10:           ua.indexOf('MSIE 10') > -1,
+      IE10plus:       ua.indexOf('MSIE 10') > -1 || ua.indexOf('MSIE 11') > -1 || ua.indexOf('MSIE 12') > -1 || ua.indexOf('MSIE 13') > -1,
       Opera:          isOpera,
       WebKit:         ua.indexOf('AppleWebKit/') > -1,
       Gecko:          ua.indexOf('Gecko') > -1 && ua.indexOf('KHTML') === -1,
@@ -1522,8 +1524,12 @@ Ajax.Request = Class.create(Ajax.Base, {
         this.options.asynchronous);
 
       if (this.options.asynchronous) this.respondToReadyState.bind(this).defer(1);
+      else if(this.options.msxmldoctype && Prototype.Browser.IE10) {
+          try {this.transport.responseType = 'msxml-document'; } catch(e){}
+      }
 
-      this.transport.onreadystatechange = this.onStateChange.bind(this);
+
+        this.transport.onreadystatechange = this.onStateChange.bind(this);
       this.setRequestHeaders();
 
       this.body = this.method == 'post' ? (this.options.postBody || params) : null;
@@ -2027,7 +2033,7 @@ Element.Methods = {
           while (element.firstChild) {
             element.removeChild(element.firstChild);
           }
-          Element._getContentFromAnonymousElement(tagName, content.stripScripts())
+          Element._getContentFromAnonymousElement(tagName, content)
             .each(function(node) {
               element.appendChild(node)
             });
@@ -2035,15 +2041,15 @@ Element.Methods = {
           while (element.firstChild) {
             element.removeChild(element.firstChild);
           }
-          var nodes = Element._getContentFromAnonymousElement(tagName, content.stripScripts(), true);
+          var nodes = Element._getContentFromAnonymousElement(tagName, content, true);
           nodes.each(function(node) { element.appendChild(node) });
         }
         else {
-          element.innerHTML = content.stripScripts();
+          element.innerHTML = content;
         }
       }
       else {
-        element.innerHTML = content.stripScripts();
+        element.innerHTML = content;
       }
 
       content.evalScripts.bind(content).defer();
@@ -2061,7 +2067,7 @@ Element.Methods = {
       var range = element.ownerDocument.createRange();
       range.selectNode(element);
       content.evalScripts.bind(content).defer();
-      content = range.createContextualFragment(content.stripScripts());
+      content = range.createContextualFragment(content);
     }
     element.parentNode.replaceChild(content, element);
     return element;
@@ -2092,7 +2098,7 @@ Element.Methods = {
       tagName = ((position == 'before' || position == 'after')
         ? element.parentNode : element).tagName.toUpperCase();
 
-      childNodes = Element._getContentFromAnonymousElement(tagName, content.stripScripts());
+      childNodes = Element._getContentFromAnonymousElement(tagName, content);
 
       if (position == 'top' || position == 'after') childNodes.reverse();
       childNodes.each(insert.curry(element));

@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 
 /**
@@ -24,6 +24,7 @@
  */
 Class.create("RemoteNodeProvider", {
 	__implements : "IAjxpNodeProvider",
+    discrete : false,
 	/**
 	 * Constructor
 	 */
@@ -35,7 +36,11 @@ Class.create("RemoteNodeProvider", {
 	 * @param properties Object
 	 */
 	initProvider : function(properties){
-		this.properties = properties;
+		this.properties = $H(properties);
+        if(this.properties && this.properties.get('connexion_discrete')){
+            this.discrete = true;
+            this.properties.unset('connexion_discrete');
+        }
 	},
 	/**
 	 * Load a node
@@ -45,12 +50,19 @@ Class.create("RemoteNodeProvider", {
 	 */
 	loadNode : function(node, nodeCallback, childCallback){
 		var conn = new Connexion();
+        if(this.discrete) conn.discrete = true;
 		conn.addParameter("get_action", "ls");
 		conn.addParameter("options", "al");
 		var path = node.getPath();
 		// Double encode # character
 		if(node.getMetadata().get("paginationData")){
 			path += "%23" + node.getMetadata().get("paginationData").get("current");
+            conn.addParameter("remote_order", "true");
+            if(node.getMetadata().get("remote_order")){
+                node.getMetadata().get("remote_order").each(function(pair){
+                    conn.addParameter(pair.key, pair.value);
+                });
+            }
 		}
 		conn.addParameter("dir", path);
 		if(this.properties){
@@ -68,6 +80,64 @@ Class.create("RemoteNodeProvider", {
 		}.bind(this);	
 		conn.sendAsync();
 	},
+
+    /**
+   	 * Load a node
+   	 * @param node AjxpNode
+   	 * @param nodeCallback Function On node loaded
+   	 */
+   	loadLeafNodeSync : function(node, nodeCallback, aSync){
+   		var conn = new Connexion();
+   		conn.addParameter("get_action", "ls");
+   		conn.addParameter("options", "al");
+   		conn.addParameter("dir", getRepName(node.getPath()));
+        conn.addParameter("file", getBaseName(node.getPath()));
+   		if(this.properties){
+   			$H(this.properties).each(function(pair){
+   				conn.addParameter(pair.key, pair.value);
+   			});
+   		}
+   		conn.onComplete = function (transport){
+   			try{
+   				this.parseNodes(node, transport, null, nodeCallback, true);
+   			}catch(e){
+   				if(ajaxplorer) ajaxplorer.displayMessage('ERROR', 'Loading error :'+e.message);
+   				else alert('Loading error :'+ e.message);
+   			}
+   		}.bind(this);
+        if(aSync) conn.sendAsync();
+   		else conn.sendSync();
+   	},
+
+    refreshNodeAndReplace : function(node, onComplete){
+
+        var conn = new Connexion();
+        conn.addParameter("get_action", "ls");
+        conn.addParameter("options", "al");
+        conn.addParameter("dir", getRepName(node.getPath()));
+        conn.addParameter("file", getBaseName(node.getPath()));
+        if(this.properties){
+            $H(this.properties).each(function(pair){
+                conn.addParameter(pair.key, pair.value);
+            });
+        }
+
+        var nodeCallback = function(newNode){
+            node.replaceBy(newNode, "override");
+            if(onComplete) onComplete(node);
+        };
+        conn.onComplete = function (transport){
+            try{
+                this.parseNodes(node, transport, null, nodeCallback, true);
+            }catch(e){
+                if(ajaxplorer) ajaxplorer.displayMessage('ERROR', e.message);
+                else alert(e.message);
+            }
+        }.bind(this);
+        conn.sendAsync();
+
+    },
+
 	/**
 	 * Parse the answer and create AjxpNodes
 	 * @param origNode AjxpNode
@@ -75,13 +145,22 @@ Class.create("RemoteNodeProvider", {
 	 * @param nodeCallback Function
 	 * @param childCallback Function
 	 */
-	parseNodes : function(origNode, transport, nodeCallback, childCallback){
-		if(!transport.responseXML || !transport.responseXML.documentElement) return;
+	parseNodes : function(origNode, transport, nodeCallback, childCallback, childrenOnly){
+		if(!transport.responseXML || !transport.responseXML.documentElement) {
+		    if(console){
+		         console.log(transport.responseText);
+		    }
+		    nodeCallback(origNode);
+		    origNode.setLoaded(false);
+		    throw new Error('Invalid XML Document (see console)');
+		}
 		var rootNode = transport.responseXML.documentElement;
 		var children = rootNode.childNodes;
-		var contextNode = this.parseAjxpNode(rootNode);
-		origNode.replaceBy(contextNode);
-		
+        if(!childrenOnly){
+            var contextNode = this.parseAjxpNode(rootNode);
+            origNode.replaceBy(contextNode, "merge");
+        }
+
 		// CHECK FOR MESSAGE OR ERRORS
 		var errorNode = XPathSelectSingleNode(rootNode, "error|message");
 		if(errorNode){
@@ -113,10 +192,21 @@ Class.create("RemoteNodeProvider", {
 		var children = XPathSelectNodes(rootNode, "tree");
 		children.each(function(childNode){
 			var child = this.parseAjxpNode(childNode);
-			origNode.addChild(child);
+			if(!childrenOnly) origNode.addChild(child);
+            var cLoaded;
+            if(XPathSelectNodes(childNode, 'tree').length){
+                XPathSelectNodes(childNode, 'tree').each(function(c){
+                    var newChild = this.parseAjxpNode(c);
+                    if(newChild){
+                        child.addChild(newChild);
+                    }
+                }.bind(this));
+                cLoaded = true;
+            }
 			if(childCallback){
 				childCallback(child);
 			}
+            if(cLoaded) child.setLoaded(true);
 		}.bind(this) );
 
 		if(nodeCallback){

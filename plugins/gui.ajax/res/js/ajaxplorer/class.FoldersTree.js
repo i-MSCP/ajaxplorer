@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 
 /**
@@ -61,7 +61,10 @@ Class.create("FoldersTree", AjxpPane, {
 			if(!ajaxplorer) return;
 			ajaxplorer.focusOn(thisObject);
 			if(this.ajxpNode){
-				ajaxplorer.actionBar.fireDefaultAction("dir", this.ajxpNode);
+                if(ajaxplorer.getUserSelection().getContextNode() != this.ajxpNode){
+                    ajaxplorer.actionBar.fireDefaultAction("dir", this.ajxpNode);
+                }
+                ajaxplorer.getUserSelection().setSelectedNodes([this.ajxpNode], thisObject);
 			}
 		};
 		
@@ -77,7 +80,7 @@ Class.create("FoldersTree", AjxpPane, {
 			Event.stop(e);
 		}.bind(this.tree));
 
-		AjxpDroppables.add(this.tree.id);
+		AjxpDroppables.add(this.tree.id, this.tree.ajxpNode);
 		if(!this.tree.open && !this.tree.loading) {
 			this.tree.toggle();		
 		}
@@ -119,7 +122,7 @@ Class.create("FoldersTree", AjxpPane, {
 		}.bind(this);
 		document.observe("ajaxplorer:component_config_changed",  compConfChanged);
         this.registeredObservers.set("ajaxplorer:component_config_changed", compConfChanged);
-		
+
 	},
 
     destroy : function(){
@@ -129,7 +132,7 @@ Class.create("FoldersTree", AjxpPane, {
         if(this.scrollbar) this.scrollbar.destroy();
         if(this.tree) this.tree.destroy();
         if(window[this.htmlElement.id]){
-            delete window[this.htmlElement.id];
+            try{delete window[this.htmlElement.id];}catch(e){}
         }
     },
 
@@ -159,6 +162,9 @@ Class.create("FoldersTree", AjxpPane, {
 		if(webFXTreeHandler.selected)
 		{
 			webFXTreeHandler.selected.focus();
+            if(webFXTreeHandler.selected.ajxpNode){
+                ajaxplorer.getUserSelection().setSelectedNodes([webFXTreeHandler.selected.ajxpNode], this);
+            }
 		}
 		webFXTreeHandler.setFocus(true);
 		this.hasFocus = true;
@@ -185,6 +191,7 @@ Class.create("FoldersTree", AjxpPane, {
             this.scroller.setStyle({height:parseInt(this.treeContainer.getHeight())+'px'});
             this.scrollbar.recalculateLayout();
         }
+        document.fire("ajaxplorer:resize-FoldersTree-" + this.htmlElement.id, this.htmlElement.getDimensions());
 	},
 	
 	/**
@@ -287,5 +294,107 @@ Class.create("FoldersTree", AjxpPane, {
 			realNode.icon = newIcon;
 			realNode.openIcon = newIcon;
 		}
-	}
+	},
+
+
+    /**
+   	 * Inline Editing of label
+   	 * @param callback Function Callback after the label is edited.
+   	 */
+   	switchCurrentLabelToEdition : function(callback){
+   		var sel = webFXTreeHandler.selected;
+        if(!sel) return;
+        var nodeId = webFXTreeHandler.selected.id;
+   		var item = this.treeContainer.down('#' + nodeId); // We assume this action was triggered with a single-selection active.
+   		var offset = {top:0,left:0};
+   		var scrollTop = 0;
+
+        var span = item.down('a');
+        var posSpan = item;
+        offset.top=1;
+        offset.left=43;
+        scrollTop = this.treeContainer.scrollTop;
+
+   		var pos = posSpan.cumulativeOffset();
+   		var text = span.innerHTML;
+   		var edit = new Element('input', {value:item.ajxpNode.getLabel('text'), id:'editbox'}).setStyle({
+   			zIndex:5000,
+   			position:'absolute',
+   			marginLeft:'0px',
+   			marginTop:'0px',
+   			height:'24px',
+               padding: 0
+   		});
+   		$(document.getElementsByTagName('body')[0]).insert({bottom:edit});
+   		modal.showContent('editbox', (posSpan.getWidth()-offset.left)+'', '20', true, false, {opacity:0.25, backgroundColor:'#fff'});
+   		edit.setStyle({left:(pos.left+offset.left)+'px', top:(pos.top+offset.top-scrollTop)+'px'});
+   		window.setTimeout(function(){
+   			edit.focus();
+   			var end = edit.getValue().lastIndexOf("\.");
+   			if(end == -1){
+   				edit.select();
+   			}else{
+   				var start = 0;
+   				if(edit.setSelectionRange)
+   				{
+   					edit.setSelectionRange(start,end);
+   				}
+   				else if (edit.createTextRange) {
+   					var range = edit.createTextRange();
+   					range.collapse(true);
+   					range.moveStart('character', start);
+   					range.moveEnd('character', end);
+   					range.select();
+   				}
+   			}
+
+   		}, 300);
+   		var onOkAction = function(){
+   			var newValue = edit.getValue();
+   			hideLightBox();
+   			modal.close();
+   			callback(item.ajxpNode, newValue);
+   		};
+   		edit.observe("keydown", function(event){
+   			if(event.keyCode == Event.KEY_RETURN){
+   				Event.stop(event);
+   				onOkAction();
+   			}
+   		}.bind(this));
+   		// Add ok / cancel button, for mobile devices among others
+   		var buttons = modal.addSubmitCancel(edit, null, false, "after");
+        buttons.addClassName("inlineEdition");
+   		var ok = buttons.select('input[name="ok"]')[0];
+   		ok.observe("click", onOkAction);
+   		var origWidth = edit.getWidth()-44;
+   		var newWidth = origWidth;
+   		if(origWidth < 70){
+   			// Offset edit box to be sure it's always big enough.
+   			edit.setStyle({left:pos.left+offset.left - 70 + origWidth});
+   			newWidth = 70;
+   		}
+   		edit.setStyle({width:newWidth+'px'});
+
+   		buttons.select('input').invoke('setStyle', {
+   			margin:0,
+   			width:'22px',
+   			border:0,
+   			backgroundColor:'transparent'
+   		});
+   		buttons.setStyle({
+   			position:'absolute',
+   			width:'46px',
+   			zIndex:2500,
+   			left:(pos.left+offset.left+origWidth)+'px',
+   			top:((pos.top+offset.top-scrollTop)-1)+'px'
+   		});
+   		var closeFunc = function(){
+   			span.setStyle({color:''});
+   			edit.remove();
+   			buttons.remove();
+   		};
+   		span.setStyle({color:'#ddd'});
+   		modal.setCloseAction(closeFunc);
+   	}
+
 });

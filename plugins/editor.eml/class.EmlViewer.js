@@ -1,27 +1,27 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 Class.create("EmlViewer", AbstractEditor, {
 
-	initialize: function($super, oFormObject)
+	initialize: function($super, oFormObject, options)
 	{
-		$super(oFormObject);
+		$super(oFormObject, options);
 		this.actions.get("downloadFileButton").observe('click', function(){
 			if(!this.currentFile) return;		
 			ajaxplorer.triggerDownload(ajxpBootstrap.parameters.get('ajxpServerAccess')+'&action=download&file='+this.currentFile);
@@ -30,7 +30,7 @@ Class.create("EmlViewer", AbstractEditor, {
 	},
 	
 	
-	open : function($super, userSelection){
+	open : function($super, node){
 		// Move hidden download form in body, if not already there
 		var original = $("emlDownloadAttachmentForm");
 		if($("emlDownloadForm")){
@@ -44,8 +44,8 @@ Class.create("EmlViewer", AbstractEditor, {
 			$("emlDownloadForm").insert(new Element("input", {"type":"hidden", "name":"secure_token", "value":Connexion.SECURE_TOKEN}));
 			$("emlDownloadForm").insert(new Element("input", {"type":"hidden", "name":"attachment_id", "value":""}));
 		}
-		$super(userSelection);
-		var fileName = userSelection.getUniqueFileName();
+		$super(node);
+		var fileName = node.getPath();
 		this.textareaContainer = new Element('div');
 		this.contentMainContainer = this.textareaContainer;
 		this.textareaContainer.setStyle({width:'100%', overflow:'auto'});	
@@ -82,12 +82,17 @@ Class.create("EmlViewer", AbstractEditor, {
 		
 	
 	dlAttachment : function(event){
-		//console.log(event.target.__ATTACHMENT_ID);
 		var form = $("emlDownloadForm");
-		form.elements["secure_token"].value = Connexion.SECURE_TOKEN;
-		form.elements["file"].value = this.currentFile; 
-		form.elements["attachment_id"].value = event.target.up("div").__ATTACHMENT_ID;
-		form.submit();
+        form.elements["secure_token"].value = Connexion.SECURE_TOKEN;
+        form.elements["file"].value = this.currentFile;
+        form.elements["attachment_id"].value = event.target.up("div").__ATTACHMENT_ID;
+
+        var agent = navigator.userAgent;
+        if(agent && (agent.indexOf('iPhone')!=-1||agent.indexOf('iPod')!=-1||agent.indexOf('iPad')!=-1||agent.indexOf('iOs')!=-1||agent.indexOf('Safari')!=-1)){
+            document.location.href = window.ajxpServerAccessPath + "&" + form.serialize();
+        }else{
+            form.submit();
+        }
 	},
 	
 	cpAttachment : function(event){

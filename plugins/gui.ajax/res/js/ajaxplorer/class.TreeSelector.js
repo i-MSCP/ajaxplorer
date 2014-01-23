@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 
 /**
@@ -33,7 +33,10 @@ Class.create("TreeSelector", {
 			filterSelectorId : 'select[id="external_repository"]',
 			targetField : 'input[name="dest"]',
 			targetNode: 'input[name="dest_node"]',
-			treeContainer : '.treeCopyContainer'
+			treeContainer : '.treeCopyContainer',
+            nodeFilter : function(ajxpNode){
+                return (!ajxpNode.isLeaf());
+            }
 		}, options || {});
 	},
 	/**
@@ -55,13 +58,10 @@ Class.create("TreeSelector", {
 			targetNode.value = this.ajxpNode.getPath();
  			this.select();			
 		};
-		this._nodeFilter = function(ajxpNode){
-			return (!ajxpNode.isLeaf());
-		};
 		if(!rootNode){
 			rootNode = new AjxpNode("/", false, MessageHash[373], "folder.png");
 		}
-		this.treeCopy = new AJXPTree(rootNode, this._nodeActionCallback, this._nodeFilter);							
+		this.treeCopy = new AJXPTree(rootNode, this._nodeActionCallback, this.options.nodeFilter);
 		this.treeContainer.update(this.treeCopy.toString());
 		$(this.treeCopy.id).observe("click", function(e){
 			this.action();

@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 
 /**
@@ -77,11 +77,10 @@ Class.create("HeaderResizer", {
 	generateHeader : function(){
 		var data = this.options.headerData;
 		this.element.addClassName('header_resizer');
-		this.element.addClassName('css_gradient');
 		var initSizes;
 		var index=0;
 		data.each(function(el){
-			this.element.insert('<div class="header_cell"><div class="header_label css_gradient">'+el.label+'</div></div>');
+			this.element.insert('<div class="header_cell"><div class="header_label">'+el.label+'</div></div>');
 			if(el  != data.last()){
 				this.element.insert('<div class="resizer">&nbsp;</div>');
 			}
@@ -275,7 +274,7 @@ Class.create("HeaderResizer", {
 			
 		});
 	},
-	
+
 	/**
 	 * Create a ghost during drag resizing
 	 * @returns HTMLElement
@@ -288,37 +287,39 @@ Class.create("HeaderResizer", {
 		ghost.setStyle({height: h+"px", left:0});
 		return ghost;
 	},
-	
+
 	/**
 	 * Apply the columns sizes to the body. When possible, uses CSS3 selectors
 	 */
 	refreshBody : function(){
 		var newSizes = this.getCurrentSizes();
-		var useCSS3  = this.options.useCSS3;
-		var sheet = this.createStyleSheet();
-		
+        if(!newSizes) return;
+        var useCSS3  = this.options.useCSS3;
+        var sheet = this.createStyleSheet();
+
 		if(Prototype.Browser.IE){
 			this.options.body.select(this.options.bodyRowSelector).each(function(row){
 				var cells = row.select(this.options.bodyCellSelector);
 				for(var i=0; i<cells.length;i++){
 					if(newSizes[i]) this.setGridCellWidth(cells[i], newSizes[i]);
 				}
-			}.bind(this) );					
+			}.bind(this) );
 			this.checkBodyScroll();
 			return;
 		}
-		
+
 		// ADD CSS3 RULE
 		for(var i=0;i<newSizes.length;i++){
+            var selector;
 			if(useCSS3){
-				var selector = "#"+this.options.body.id+" td:nth-child("+(i+1)+")";
+				selector = "#"+this.options.body.id+" td:nth-child("+(i+1)+")";
 			}else{
-				var selector = "#"+this.options.body.id+" td.resizer_"+ (i);
+				selector = "#"+this.options.body.id+" td.resizer_"+ (i);
 			}
 			var rule = "width:"+(newSizes[i] + (Prototype.Browser.IE?10:0))+"px !important;";
-			
+
 			this.addStyleRule(sheet, selector, rule);
-			
+
 			if(useCSS3){
 				selector = "#"+this.options.body.id+" td:nth-child("+(i+1)+") .text_label";
 			}else{
@@ -330,7 +331,7 @@ Class.create("HeaderResizer", {
 
 		this.checkBodyScroll();
 	},
-	
+
 	/**
 	 * Add a CSS RULE dynamically
 	 * @param sheet CSSSheet
@@ -349,12 +350,13 @@ Class.create("HeaderResizer", {
 	 * Creates a style sheet
 	 */
 	createStyleSheet : function(){
+        var sheet;
 		if(Prototype.Browser.IE){
 			return;
 			if(!window['ajxp_resizer_'+this.options.body.id]){
 		        window['ajxp_resizer_'+this.options.body.id] = document.createStyleSheet();
 			}
-			var sheet = window['ajxp_resizer_'+this.options.body.id];
+			sheet = window['ajxp_resizer_'+this.options.body.id];
 	        // Remove previous rules
 	        var rules = sheet.rules;
 	        var len = rules.length;	
@@ -368,7 +370,7 @@ Class.create("HeaderResizer", {
 			if(cssTag) cssTag.remove();
 	        cssTag = new Element("style", {type:"text/css", id:'resizer_css-'+this.options.body.id});
 	        $$("head")[0].insert(cssTag);
-	        var sheet = cssTag.sheet;		        
+	        sheet = cssTag.sheet;
 		}
 		return sheet;		
 	},
@@ -490,7 +492,9 @@ Class.create("HeaderResizer", {
                 $(this.scroller.parentNode).insert({top:this.element});
             }
 			body.stopObserving("scroll", this.scroller.observer);
-			this.scroller.remove();
+            if($(this.scroller.parentNode)){
+			    this.scroller.remove();
+            }
 			this.scroller = null;			
 			this.resizeHeaders();
 		}
@@ -502,14 +506,14 @@ Class.create("HeaderResizer", {
 	getInnerWidth : function(){
 		var leftWidth = parseInt(this.element.getStyle('borderLeftWidth')) || 0;
 		var rightWidth = parseInt(this.element.getStyle('borderRightWidth')) || 0;
-		return innerWidth = this.element.getWidth() - leftWidth - rightWidth ;
+		return this.element.getWidth() - leftWidth - rightWidth ;
 	},
 	
 	/**
 	 * Get the header inner height
 	 */
 	getInnerHeight : function(element){
-		return innerWidth = element.getHeight() - (parseInt(element.getStyle('borderTopWidth')) || 0) - (parseInt(element.getStyle('borderBottomWidth')) || 0);
+		return element.getHeight() - (parseInt(element.getStyle('borderTopWidth')) || 0) - (parseInt(element.getStyle('borderBottomWidth')) || 0);
 	},		
 	
 	/**

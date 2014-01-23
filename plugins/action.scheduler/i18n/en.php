@@ -1,22 +1,22 @@
 <?php
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 $mess = array(
     // will be replaced by the application title
@@ -27,7 +27,7 @@ $mess = array(
     "3" => "Next Execution",
     "4" => "Repository ID",
     "4s" => "Repository",
-    "4d" => "Id of the target repository",
+    "4d" => "Id of the target workspace",
     "5" => "Parameters",
     "5d" => "Replicable action parameters",
     "6" => "Param Name",
@@ -44,7 +44,7 @@ $mess = array(
     "14" => "Last Execution",
     "15"=> "Run all tasks",
     "15d" => "Trigger selected task now",
-    "16" => "Run tasks",
+    "16" => "Run task",
     "16d" => "Trigger scheduler and run scheduled tasks",
     "17" => "User(s)",
     "17d" => "Enter a comma separated list of users, or wildcard * to recurse the task on all users.",
@@ -55,4 +55,5 @@ $mess = array(
     "20" => "Cron Expression",
     "20d" => "Generate Crontab expression",
     "21" => "Add the following line to your CRONTAB, replacing your password real value, and the scheduling you want (here configured to run every five minutes).",
+    "22" => "Generic scheduler to perform tasks on a regular basis. Requires CLI activation and a CRONTAB or similar system.",
 );

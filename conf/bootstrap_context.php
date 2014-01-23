@@ -1,36 +1,34 @@
 <?php
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  *
  * This is the main configuration file for configuring the core of the application.
  * In a standard usage, you should not have to change any variables.
  */
-if(function_exists("date_default_timezone_set") and function_exists("date_default_timezone_get")){
-	@date_default_timezone_set(@date_default_timezone_get());
+@date_default_timezone_set(@date_default_timezone_get());
+if (function_exists("xdebug_disable")) {
+    xdebug_disable();
 }
-if(function_exists("xdebug_disable")){
-	xdebug_disable();
-}
-@error_reporting(E_ALL & ~E_NOTICE);
+@error_reporting(E_ALL & ~E_NOTICE & ~E_STRICT);
 //Windows users may have to uncomment this
 //setlocale(LC_ALL, '');
-
+@libxml_disable_entity_loader(false);
 
 list($vNmber,$vDate) = explode("__",file_get_contents(AJXP_CONF_PATH."/VERSION"));
 define("AJXP_VERSION", $vNmber);
@@ -44,6 +42,7 @@ define("AJXP_CACHE_DIR", AJXP_DATA_PATH."/cache");
 define("AJXP_SHARED_CACHE_DIR", AJXP_INSTALL_PATH."/data/cache");
 define("AJXP_PLUGINS_CACHE_FILE", AJXP_CACHE_DIR."/plugins_cache.ser");
 define("AJXP_PLUGINS_REQUIRES_FILE", AJXP_CACHE_DIR."/plugins_requires.ser");
+define("AJXP_PLUGINS_QUERIES_CACHE", AJXP_CACHE_DIR."/plugins_queries.ser");
 define("AJXP_PLUGINS_MESSAGES_FILE", AJXP_CACHE_DIR."/plugins_messages.ser");
 define("AJXP_SERVER_ACCESS", "index.php");
 define("AJXP_PLUGINS_FOLDER", "plugins");
@@ -65,32 +64,47 @@ define("ADMIN_PASSWORD", "admin");
 // example in log.serial. Do not forget the trailing slash
 // define("AJXP_FORCE_LOGPATH", "/var/log/ajaxplorer/");
 
-
 // DEBUG OPTIONS
-define("AJXP_CLIENT_DEBUG"  ,	false);
-define("AJXP_SERVER_DEBUG"  ,	false);
-define("AJXP_SKIP_CACHE"    ,   false);
+define("AJXP_CLIENT_DEBUG", false);
+define("AJXP_SERVER_DEBUG", false);
+define("AJXP_SKIP_CACHE", false);
 
-require(AJXP_BIN_FOLDER."/compat.php");
+// PBKDF2 CONSTANTS FOR A SECURE STORAGE OF PASSWORDS
+// These constants may be changed without breaking existing hashes.
+define("PBKDF2_HASH_ALGORITHM", "sha256");
+define("PBKDF2_ITERATIONS", 1000);
+define("PBKDF2_SALT_BYTE_SIZE", 24);
+define("PBKDF2_HASH_BYTE_SIZE", 24);
 
-function AjaXplorer_autoload($className){
-	$fileName = AJXP_BIN_FOLDER."/"."class.".$className.".php";
-	if(file_exists($fileName)){
-		require_once($fileName);
+define("HASH_SECTIONS", 4);
+define("HASH_ALGORITHM_INDEX", 0);
+define("HASH_ITERATION_INDEX", 1);
+define("HASH_SALT_INDEX", 2);
+define("HASH_PBKDF2_INDEX", 3);
+
+// CAN BE SWITCHED TO TRUE TO MAKE THE SECURE TOKEN MORE SAFE
+// MAKE SURE YOU HAVE PHP.5.3, OPENSSL, AND THAT IT DOES NOT DEGRADE PERFORMANCES
+define("USE_OPENSSL_RANDOM", false);
+
+function AjaXplorer_autoload($className)
+{
+    $fileName = AJXP_BIN_FOLDER."/"."class.".$className.".php";
+    if (file_exists($fileName)) {
+        require_once($fileName);
         return;
-	}
-	$fileName = AJXP_BIN_FOLDER."/"."interface.".$className.".php";
-	if(file_exists($fileName)){
-		require_once($fileName);
+    }
+    $fileName = AJXP_BIN_FOLDER."/"."interface.".$className.".php";
+    if (file_exists($fileName)) {
+        require_once($fileName);
         return;
-	}
+    }
     $corePlugClass = glob(AJXP_INSTALL_PATH."/".AJXP_PLUGINS_FOLDER."/core.*/class.".$className.".php", GLOB_NOSORT);
-    if($corePlugClass !== false && count($corePlugClass)){
+    if ($corePlugClass !== false && count($corePlugClass)) {
         require_once($corePlugClass[0]);
         return;
     }
     $corePlugInterface = glob(AJXP_INSTALL_PATH."/".AJXP_PLUGINS_FOLDER."/core.*/interface.".$className.".php", GLOB_NOSORT);
-    if($corePlugInterface !== false && count($corePlugInterface)){
+    if ($corePlugInterface !== false && count($corePlugInterface)) {
         require_once($corePlugInterface[0]);
         return;
     }
@@ -99,14 +113,12 @@ spl_autoload_register('AjaXplorer_autoload');
 
 AJXP_Utils::safeIniSet("session.cookie_httponly", 1);
 
-if(is_file(AJXP_CONF_PATH."/bootstrap_conf.php")){
+if (is_file(AJXP_CONF_PATH."/bootstrap_conf.php")) {
     include(AJXP_CONF_PATH."/bootstrap_conf.php");
-    if(isSet($AJXP_INISET)){
+    if (isSet($AJXP_INISET)) {
         foreach($AJXP_INISET as $key => $value) AJXP_Utils::safeIniSet($key, $value);
     }
-    if(defined('AJXP_LOCALE')){
+    if (defined('AJXP_LOCALE')) {
         setlocale(LC_ALL, AJXP_LOCALE);
     }
 }
-
-?>

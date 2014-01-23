@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 
 /**
@@ -33,6 +33,9 @@ Class.create("InfoPanel", AjxpPane, {
 		disableTextSelection(htmlElement);
         var id = htmlElement.id;
         var container = new Element("div", {className:"panelContent", id:"ip_content_"+id});
+        if(!options){
+            options = {replaceScroller:true};
+        }
         if(options.replaceScroller){
             this.scroller = new Element('div', {id:'ip_scroller_'+id, className:'scroller_track'});
             this.scroller.insert(new Element('div', {id:'ip_scrollbar_handle_'+id, className:'scroller_handle'}));
@@ -65,6 +68,24 @@ Class.create("InfoPanel", AjxpPane, {
             document.observe("ajaxplorer:user_logged", this.userLogHandler );
         }
 	},
+
+
+    /**
+     * Opened as an editor
+     * @param $super
+     * @param node
+     */
+    open : function($super, node){
+        this.htmlElement.up('div.dialogBox').setStyle({width:Math.min(450, document.viewport.getWidth())+'px'});
+        this.htmlElement.up('div.dialogContent').setStyle({padding:0});
+        this.htmlElement.down('#ip_content_info_panel').setStyle({position:"relative", top:0, left:0, width:'100%', height: Math.min(450, document.viewport.getHeight()-28)+'px', overflow:'auto'});
+        try{
+            this.htmlElement.down('#ip_content_modal_action_form').remove();
+            this.htmlElement.down('#ip_scroller_modal_action_form').remove();
+        }catch (e){}
+        modal.refreshDialogPosition();
+    },
+
 	/**
 	 * Clean destroy of the panel, remove listeners
 	 */
@@ -81,7 +102,7 @@ Class.create("InfoPanel", AjxpPane, {
         }
         this.htmlElement.update("");
         if(window[this.htmlElement.id]){
-            delete window[this.htmlElement.id];
+            try{delete window[this.htmlElement.id];}catch(e){}
         }
 		this.htmlElement = null;
 	},
@@ -114,6 +135,7 @@ Class.create("InfoPanel", AjxpPane, {
         var userSelection = ajaxplorer.getUserSelection();
         var contextNode = userSelection.getContextNode();
 		this.empty();
+        this.clearPanelHeaderIcons();
         if(this.scrollbar) this.scrollbar.recalculateLayout();
 		if(!contextNode) {
 			return;
@@ -124,7 +146,7 @@ Class.create("InfoPanel", AjxpPane, {
 			if(userSelection.getContextNode()){
 				currentRep = getBaseName(userSelection.getContextNode().getPath());
 			}
-			if(currentRep == ""){
+			if(currentRep == "" && $('repo_path')){
 				currentRep = $('repo_path').value;
 			}
 			
@@ -144,13 +166,13 @@ Class.create("InfoPanel", AjxpPane, {
 				}
 			}
 			
-			this.evalTemplateForMime("no_selection", null, {
+			this.evalTemplateForMime((contextNode.getPath() =="/" && this.registeredMimes.get("ajxp_root_node") ? "ajxp_root_node": "no_selection"), (contextNode.getPath() =="/" ? contextNode : null), {
 				filelist_folders_count:folderNumber,
 				filelist_files_count:filesNumber,
 				filelist_totalsize:roundSize(size, (MessageHash?MessageHash[266]:'B')),
 				current_folder:currentRep
 			});
-				try{
+            try{
 				if(!folderNumber && $(this.contentContainer).select('[id="filelist_folders_count"]').length){
 					$(this.contentContainer).select('[id="filelist_folders_count"]')[0].hide();
 				}
@@ -163,13 +185,16 @@ Class.create("InfoPanel", AjxpPane, {
 			}catch(e){}
 			this.addActions('empty');
             if(this.scrollbar) this.scrollbar.recalculateLayout();
-			return;
+            this.updateTitle();
+            disableTextSelection(this.contentContainer);
+            return;
 		}
 		if(!passedNode && !userSelection.isUnique())
 		{
 			this.setContent('<br><br><center><i>'+ userSelection.getFileNames().length + ' '+MessageHash[128]+'</i></center><br><br>');
 			this.addActions('multiple');
             if(this.scrollbar) this.scrollbar.recalculateLayout();
+            disableTextSelection(this.contentContainer);
 			return;
 		}
 
@@ -178,16 +203,40 @@ Class.create("InfoPanel", AjxpPane, {
         }else{
             uniqNode = passedNode;
         }
+
+        this.updateTitle(uniqNode.getLabel());
 		var isFile = false;
 		if(uniqNode) isFile = uniqNode.isLeaf();
 		this.evalTemplateForMime((isFile?'generic_file':'generic_dir'), uniqNode);
 		
 		var extension = getAjxpMimeType(uniqNode);
-		if(extension != "" && this.registeredMimes.get(extension)){
-			this.evalTemplateForMime(extension, uniqNode);
-		}
-		
-		this.addActions('unique');
+        var metadata = uniqNode.getMetadata();
+        this.registeredMimes.each(function(pair){
+            "use strict";
+            if(pair.key == extension){
+                this.evalTemplateForMime(extension, uniqNode);
+            }
+            if(pair.key.indexOf('meta:') === 0 && metadata.get(pair.key.replace('meta:',''))){
+                this.evalTemplateForMime(pair.key, uniqNode);
+            }
+        }.bind(this));
+        this.contentContainer.select('[data-ajxpAction]').each(function(act){
+            if(act.getAttribute('data-ajxpAction') != 'no-action'){
+                act.observe('click', function(event){
+                    window.ajaxplorer.actionBar.fireAction(event.target.getAttribute('data-ajxpAction'));
+                }.bind(this));
+            }else{
+                act.setStyle({cursor:"default"});
+            }
+            var panelPointer = act.up("div.panelHeader").next();
+            this.contributePanelHeaderIcon(
+                act.getAttribute("class"),
+                act.getAttribute("title"),
+                act.getAttribute('data-ajxpAction'),
+                panelPointer
+            );
+        }.bind(this));
+        this.addActions('unique');
 		var fakes = this.contentContainer.select('div[id="preview_rich_fake_element"]');
 		if(fakes && fakes.length){
 			this.currentPreviewElement = this.getPreviewElement(uniqNode, false);
@@ -195,6 +244,7 @@ Class.create("InfoPanel", AjxpPane, {
 			this.resize();
 		}
 		if(this.scrollbar) this.scrollbar.recalculateLayout();
+        disableTextSelection(this.contentContainer);
 	},
 	/**
 	 * Insert html in content pane
@@ -204,6 +254,45 @@ Class.create("InfoPanel", AjxpPane, {
 		if(!this.htmlElement) return;
 		this.contentContainer.update(sHtml);
 	},
+
+    updateTitle : function(title){
+        if(!this.htmlElement) return;
+        if(!title) title = MessageHash[131];
+        var panelTitle = this.htmlElement.down('div.panelHeader');
+        if(panelTitle) {
+            if(panelTitle.down('span[ajxp_message_id]')) panelTitle.down('span[ajxp_message_id]').update(title);
+            //else panelTitle.update(title);
+        }
+    },
+
+    clearPanelHeaderIcons:function(){
+        if(!this.htmlElement) return;
+        var div = this.htmlElement.down('div.folded_icons');
+        if(div) div.update("");
+    },
+
+    contributePanelHeaderIcon:function(iconClass, iconTitle, ajxpAction, panelPointer){
+        if(!this.htmlElement || !this.htmlElement.down('div.panelHeader')) return;
+        var div = this.htmlElement.down('div.folded_icons');
+        if(!div) {
+            div = new Element('div', {className: 'folded_icons'});
+            this.htmlElement.down('div.panelHeader').insert(div);
+        }else{
+            if(div.down('span.'+iconClass)) return;
+        }
+        var ic = new Element("span", {className:iconClass, title: iconTitle});
+        div.insert(ic);
+        if(ajxpAction){
+            ic.addClassName('clickable');
+            ic.observe("click", function(){
+                ajaxplorer.actionBar.fireAction(ajxpAction);
+            }.bind(this));
+        }
+        if(panelPointer){
+             modal.simpleTooltip(ic, panelPointer, 'bottom left', 'foldedPanel_tooltip', 'element', true);
+        }
+    },
+
 	/**
 	 * Show/Hide the panel
 	 * @param show Boolean
@@ -217,16 +306,31 @@ Class.create("InfoPanel", AjxpPane, {
 	 * Resize the panel
 	 */
 	resize : function(){
+        this.contentContainer.removeClassName('double');
+        this.contentContainer.removeClassName('triple');
+        var previewMaxHeight = 150;
+        if(parseInt(this.contentContainer.getWidth()) > 500) {
+            this.contentContainer.addClassName('double');
+            previewMaxHeight = 300;
+        }
+        if(parseInt(this.contentContainer.getWidth()) > 750) {
+            this.contentContainer.addClassName('triple');
+            previewMaxHeight = 450;
+        }
 		fitHeightToBottom(this.contentContainer, null);
+        previewMaxHeight = Math.min(previewMaxHeight, parseInt(this.contentContainer.getHeight()) - parseInt(this.contentContainer.getStyle('paddingTop')));
         if(this.scrollbar){
             this.scroller.setStyle({height:parseInt(this.contentContainer.getHeight())+'px'});
             this.scrollbar.recalculateLayout();
         }
 		if(this.htmlElement && this.currentPreviewElement && this.currentPreviewElement.visible()){
 			var squareDim = Math.min(parseInt(this.htmlElement.getWidth()-40));
-			this.currentPreviewElement.resizePreviewElement({width:squareDim,height:squareDim, maxHeight:150});
+			this.currentPreviewElement.resizePreviewElement({width:squareDim,height:squareDim, maxHeight:previewMaxHeight});
 		}
-	},
+        if(this.htmlElement){
+            document.fire("ajaxplorer:resize-InfoPanel-" + this.htmlElement.id, this.htmlElement.getDimensions());
+        }
+    },
 	/**
 	 * Find template and evaluate it
 	 * @param mimeType String
@@ -307,10 +411,14 @@ Class.create("InfoPanel", AjxpPane, {
 				this[pair.key] = MessageHash[pair.value];
 			}.bind(tArgs));
 			var template = new Template(tString);
-			this.contentContainer.insert(template.evaluate(tArgs));
+            if(this.contentContainer.down('div.infoPanelAllMetadata')){
+                this.contentContainer.down('div.infoPanelAllMetadata').insert(template.evaluate(tArgs));
+            }else{
+                this.contentContainer.insert(template.evaluate(tArgs));
+            }
 			if(tModifier){
 				var modifierFunc = eval(tModifier);
-				modifierFunc(this.contentContainer);
+				modifierFunc(this.contentContainer, fileNode);
 			}
 		}
 	},
@@ -351,6 +459,7 @@ Class.create("InfoPanel", AjxpPane, {
 			ajaxplorer.loadEditorResources(editors[0].resourcesManager);
 			var editorClass = Class.getByName(editors[0].editorClass);
 			if(editorClass){
+                this.contributePanelHeaderIcon('icon-eye-close', 'Preview', 'open_with');
 				if(getTemplateElement){
 					return '<div id="preview_rich_fake_element"></div>';
 				}else{
@@ -379,10 +488,10 @@ Class.create("InfoPanel", AjxpPane, {
 					var messagesList = panelChilds[j].childNodes;					
 					for(k=0;k<messagesList.length;k++){
 						if(messagesList[k].nodeName != 'message') continue;
-						messages.set(messagesList[k].getAttribute("key"), parseInt(messagesList[k].getAttribute("id")));
+						messages.set(messagesList[k].getAttribute("key"), messagesList[k].getAttribute("id"));
 					}
 				}
-				else if(panelChilds[j].nodeName == 'html'){
+				else if(panelChilds[j].nodeName == 'html' && panelChilds[j].firstChild){
 					htmlContent = panelChilds[j].firstChild.nodeValue;
 				}
 			}

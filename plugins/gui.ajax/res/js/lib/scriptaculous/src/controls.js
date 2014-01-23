@@ -107,8 +107,8 @@ Autocompleter.Base = Class.create({
   
   fixIEOverlapping: function() {
     Position.clone(this.update, this.iefix, {setTop:(!this.update.style.height)});
-    this.iefix.style.zIndex = 1;
-    this.update.style.zIndex = 2;
+    this.iefix.style.zIndex = 3000;
+    this.update.style.zIndex = 3001;
     Element.show(this.iefix);
   },
 
@@ -182,17 +182,27 @@ Autocompleter.Base = Class.create({
   
   onClick: function(event) {
     var element = Event.findElement(event, 'LI');
-    this.index = element.autocompleteIndex;
-    this.selectEntry();
-    this.hide();
+      if(element){
+          this.index = element.autocompleteIndex;
+          this.selectEntry();
+          this.hide();
+      }
   },
   
   onBlur: function(event) {
     // needed to make click events working
-    setTimeout(this.hide.bind(this), 250);
+    //setTimeout(this.hide.bind(this), 250);
     this.hasFocus = false;
-    this.active = false;     
-  }, 
+    //this.active = false;
+  },
+
+    onMouseup: function(event) {
+        if(!this.hasFocus) {
+            this.hideTimeout = setTimeout(this.hide.bind(this), 250);
+            this.hasFocus = false;
+            this.active = false;
+        }
+    },
   
   render: function() {
     if(this.entryCount > 0) {
@@ -297,6 +307,7 @@ Autocompleter.Base = Class.create({
   addObservers: function(element) {
     Event.observe(element, "mouseover", this.onHover.bindAsEventListener(this));
     Event.observe(element, "click", this.onClick.bindAsEventListener(this));
+    Event.observe($(document), "mouseup", this.onMouseup.bindAsEventListener(this));
   },
 
   onObserverEvent: function() {

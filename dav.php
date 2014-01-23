@@ -1,22 +1,22 @@
 <?php
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  *
  * Description : Command line access of the framework.
  * DAV controller, loads the ezComponent webDav Server
@@ -31,71 +31,101 @@ $confPlugin = ConfService::getInstance()->confPluginSoftLoad($pServ);
 $pServ->loadPluginsRegistry(AJXP_INSTALL_PATH."/plugins", $confPlugin);
 ConfService::start();
 
-if(!ConfService::getCoreConf("WEBDAV_ENABLE")){
-	die('You are not allowed to access this service');
+if (!ConfService::getCoreConf("WEBDAV_ENABLE")) {
+    die('You are not allowed to access this service');
 }
 
 $confStorageDriver = ConfService::getConfStorageImpl();
 require_once($confStorageDriver->getUserClassFileName());
 
-//session_start();
+AJXP_PluginsService::getInstance()->initActivePlugins();
 
-require_once AJXP_BIN_FOLDER."/ezc/Base/base.php";
-spl_autoload_register( array( 'ezcBase', 'autoload' ) );
+/**
+ * @param string $className
+ * @return void
+ */
+function AJXP_Sabre_autoload($className)
+{
+    if (strpos($className,'AJXP_Sabre_')===0) {
+        include AJXP_BIN_FOLDER. '/sabredav/ajaxplorer/class.' . $className . '.php';
+    }
+}
+spl_autoload_register('AJXP_Sabre_autoload');
 
-if(ConfService::getCoreConf("WEBDAV_BASEHOST") != ""){
-	$baseURL = ConfService::getCoreConf("WEBDAV_BASEHOST");
-}else{
-	$baseURL = AJXP_Utils::detectServerURL();
-}				
+
+
+include 'core/classes/sabredav/lib/Sabre/autoload.php';
+
+if (ConfService::getCoreConf("WEBDAV_BASEHOST") != "") {
+    $baseURL = ConfService::getCoreConf("WEBDAV_BASEHOST");
+} else {
+    $baseURL = AJXP_Utils::detectServerURL();
+}
 $baseURI = ConfService::getCoreConf("WEBDAV_BASEURI");
 
 $requestUri = $_SERVER["REQUEST_URI"];
-$end = substr($requestUri, strlen($baseURI."/"));
-$parts = explode("/", $end);
-$pathBase = $parts[0];
-$repositoryId = $pathBase;
+$end = trim(substr($requestUri, strlen($baseURI."/")));
+$rId = null;
+if ((!empty($end) || $end ==="0") && $end[0] != "?") {
 
-AJXP_Logger::debug("Searching by id $repositoryId");
-$repository = ConfService::getRepositoryById($repositoryId);
-if($repository == null){
-	AJXP_Logger::debug("Searching by alias $repositoryId");
-	$repository = ConfService::getRepositoryByAlias($repositoryId);
-	if($repository != null){
-		$repositoryId = ($repository->isWriteable()?$repository->getUniqueId():$repository->getId());
-	}
+    $parts = explode("/", $end);
+    $pathBase = $parts[0];
+    $repositoryId = $pathBase;
+
+    $repository = ConfService::getRepositoryById($repositoryId);
+    if ($repository == null) {
+        $repository = ConfService::getRepositoryByAlias($repositoryId);
+        if ($repository != null) {
+            $repositoryId = $repository->getId();
+        }
+    }
+    if ($repository == null) {
+        AJXP_Logger::debug("not found, dying $repositoryId");
+        die('You are not allowed to access this service');
+    }
+
+    $rId = $repositoryId;
+    $rootDir =  new AJXP_Sabre_Collection("/", $repository, null);
+    $server = new Sabre\DAV\Server($rootDir);
+    $server->setBaseUri($baseURI."/".$pathBase);
+
+
+} else {
+
+    $rootDir = new AJXP_Sabre_RootCollection("root");
+    $server = new Sabre\DAV\Server($rootDir);
+    $server->setBaseUri($baseURI);
+
 }
-if($repository == null){
-	AJXP_Logger::debug("not found, dying $repositoryId");
-	die('You are not allowed to access this service');
+
+if((AJXP_Sabre_AuthBackendBasic::detectBasicHeader() || ConfService::getCoreConf("WEBDAV_FORCE_BASIC"))
+    && ConfService::getAuthDriverImpl()->getOption("TRANSMIT_CLEAR_PASS")){
+    $authBackend = new AJXP_Sabre_AuthBackendBasic($rId);
+} else {
+    $authBackend = new AJXP_Sabre_AuthBackendDigest($rId);
 }
-AJXP_Logger::debug("Found repository with id ".$repository->getDisplay()."-".$repositoryId);
+$authPlugin = new Sabre\DAV\Auth\Plugin($authBackend, ConfService::getCoreConf("WEBDAV_DIGESTREALM"));
+$server->addPlugin($authPlugin);
 
-$server = ezcWebdavServer::getInstance();
-$pathFactory = new ezcWebdavBasicPathFactory($baseURL.$baseURI."/".$pathBase);
-foreach ( $server->configurations as $conf ){
-    $conf->pathFactory = $pathFactory;
-}
-if(AuthService::usersEnabled()){
-	$server->options->realm = ConfService::getCoreConf("WEBDAV_DIGESTREALM");
-	$server->auth = new AJXP_WebdavAuth($repositoryId);
+if (!is_dir(AJXP_DATA_PATH."/plugins/server.sabredav")) {
+    mkdir(AJXP_DATA_PATH."/plugins/server.sabredav", 0755);
+    $fp = fopen(AJXP_DATA_PATH."/plugins/server.sabredav/locks", "w");
+    fwrite($fp, "");
+    fclose($fp);
 }
 
-$backend = new AJXP_WebdavBackend($repository);
+$lockBackend = new Sabre\DAV\Locks\Backend\File(AJXP_DATA_PATH."/plugins/server.sabredav/locks");
+$lockPlugin = new Sabre\DAV\Locks\Plugin($lockBackend);
+$server->addPlugin($lockPlugin);
 
-/*
-$lockConf = new ezcWebdavLockPluginConfiguration(
-    new ezcWebdavLockPluginOptions(
-        array("lockTimeout" => 60)
-    )
-);
-$server->pluginRegistry->registerPlugin(
-	$lockConf
-);
-*/
-
-//$administrator = new ezcWebdavLockAdministrator($backend);
-//$administrator->purgeLocks();
-
-
-$server->handle( $backend );
+if (ConfService::getCoreConf("WEBDAV_BROWSER_LISTING")) {
+    $browerPlugin = new AJXP_Sabre_BrowserPlugin((isSet($repository)?$repository->getDisplay():null));
+    $extPlugin = new Sabre\DAV\Browser\GuessContentType();
+    $server->addPlugin($browerPlugin);
+    $server->addPlugin($extPlugin);
+}
+try {
+    $server->exec();
+} catch ( Exception $e ) {
+    AJXP_Logger::error(__CLASS__,"Exception",$e->getMessage());
+}

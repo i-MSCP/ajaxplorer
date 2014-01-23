@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  * Description : The image gallery manager.
  */
 Class.create("Diaporama", AbstractEditor, {
@@ -30,16 +30,16 @@ Class.create("Diaporama", AbstractEditor, {
             floatingToolbar:true,
             replaceScroller:false,
             toolbarStyle: "icons_only diaporama_toolbar",
-            actions : {
+            actions : (window.ajxpMinisite || window.ajxpMobile) ? {} : {}/* : {
                 'toggleSideBar' : '<a id="toggleButton"><img src="'+ajxpResourcesFolder+'/images/actions/22/view_left_close.png"  width="22" height="22" alt="" border="0"><br><span message_id="86"></span></a>'
-            }
+            }*/
         }, options);
 		$super(oFormObject, options);
 
-        var diapoSplitter = oFormObject.down("#diaporamaSplitter");
-        var diapoInfoPanel = oFormObject.down("#diaporamaMetadataContainer");
-        diapoSplitter.parentNode.setStyle({overflow:"hidden"});
         if(this.actions.get("toggleButton")){
+            var diapoInfoPanel = oFormObject.down("#diaporamaMetadataContainer");
+            var diapoSplitter = oFormObject.down("#diaporamaSplitter");
+            diapoSplitter.parentNode.setStyle({overflow:"hidden"});
             this.splitter = new Splitter(diapoSplitter, {
                 direction:"vertical",
                 "initA":250,
@@ -57,18 +57,18 @@ Class.create("Diaporama", AbstractEditor, {
                 this.infoPanel.parseComponentConfig(el.get("all"));
             }.bind(this));
         }else{
-            diapoInfoPanel.remove();
+            //diapoInfoPanel.remove();
         }
 
 		this.nextButton = this.actions.get("nextButton");
 		this.previousButton = this.actions.get("prevButton");
-		this.downloadButton = this.actions.get("downloadDiapoButton");
 		this.playButton = this.actions.get("playButton");
 		this.stopButton = this.actions.get("stopButton");		
 		this.actualSizeButton = this.actions.get('actualSizeButton');
 		this.fitToScreenButton = this.actions.get('fitToScreenButton');
 		
 		this.imgTag = this.element.down('img[id="mainImage"]');
+        this.imgTag.hide();
 		this.imgBorder = this.element.down('div[id="imageBorder"]');
 		this.imgContainer = this.element.down('div[id="imageContainer"]');
 		this.zoomInput = this.actionBar.down('input[id="zoomValue"]');
@@ -130,11 +130,6 @@ Class.create("Diaporama", AbstractEditor, {
 			this.updateButtons();
 			return false;
 		}.bind(this);
-		this.downloadButton.onclick = function(){
-			if(!this.currentFile) return;
-			ajaxplorer.triggerDownload(ajxpBootstrap.parameters.get('ajxpServerAccess')+'&action=download&file='+encodeURIComponent(this.currentFile));
-			return false;
-		}.bind(this);
 		this.actualSizeButton.onclick = function(){
 			this.setZoomValue(100);
 			this.resizeImage(true);
@@ -169,7 +164,6 @@ Class.create("Diaporama", AbstractEditor, {
 			this.jsImageLoading = false;
 			this.imgTag.src = this.jsImage.src;
 			this.resizeImage(true);
-			this.downloadButton.removeClassName("disabled");
 			var text = getBaseName(this.currentFile) + ' ('+this.sizes.get(this.currentFile).width+' X '+this.sizes.get(this.currentFile).height+')';
 			this.updateTitle(text);
 		}.bind(this);
@@ -240,7 +234,11 @@ Class.create("Diaporama", AbstractEditor, {
             if(this.splitter) this.splitter.options.fitParent = this.element.up(".dialogBox");
             this.resize();
         }.bind(this));
-		fitHeightToBottom(this.imgContainer, $(modal.elementName), 3);
+        if(this.editorOptions.context.elementName){
+            fitHeightToBottom(this.imgContainer, $(this.editorOptions.context.elementName), 3);
+        }else{
+            fitHeightToBottom(this.contentMainContainer);
+        }
 		// Fix imgContainer
 		if(Prototype.Browser.IE){
 			this.IEorigWidth = this.element.getWidth();
@@ -266,14 +264,19 @@ Class.create("Diaporama", AbstractEditor, {
 	
 	resize : function(size){
 		if(size){
-			this.imgContainer.setStyle({height:size});
+			this.imgContainer.setStyle({height:size+'px'});
 			if(this.IEorigWidth) this.imgContainer.setStyle({width:this.IEorigWidth});
 		}else{
 			if(this.fullScreenMode){
 				fitHeightToBottom(this.imgContainer, this.element);
 				if(this.IEorigWidth) this.imgContainer.setStyle({width:this.element.getWidth()});
 			}else{
-				fitHeightToBottom(this.imgContainer, $(modal.elementName), 3);
+                if(this.editorOptions.context.elementName){
+                    fitHeightToBottom(this.imgContainer, $(this.editorOptions.context.elementName), 3);
+                }else{
+                    fitHeightToBottom($(this.htmlElement));
+                    fitHeightToBottom($(this.contentMainContainer), $(this.htmlElement));
+                }
 				if(this.IEorigWidth) this.imgContainer.setStyle({width:this.IEorigWidth});
 			}
 		}
@@ -284,29 +287,40 @@ Class.create("Diaporama", AbstractEditor, {
 		this.element.fire("editor:resize", size);
 	},
 	
-	open : function($super, userSelection)
+	open : function($super, node)
 	{
-		$super(userSelection);
+		$super(node);
+        var userSelection = ajaxplorer.getUserSelection();
 		var allNodes, sCurrentFile;
 		if(userSelection.isUnique()){
-			allItems = userSelection.getContextNode().getChildren();
-			sCurrentFile = userSelection.getUniqueFileName();
+			var allItems = userSelection.getContextNode().getChildren();
+			sCurrentFile = node.getPath();
 		}else{
-			allItems = userSelection.getSelectedNodes();
+			var allItems = userSelection.getSelectedNodes();
 		}
 		this.items = new Array();
 		this.nodes = new Hash();
 		this.sizes = new Hash();
-		$A(allItems).each(function(node){
-			var meta = node.getMetadata();
-			if(meta.get('is_image')=='1'){
+        if($A(allItems).size() > 0){
+            $A(allItems).each(function(node){
+                var meta = node.getMetadata();
+                if(meta.get('is_image')=='1'){
+                    this.nodes.set(node.getPath(),node);
+                    this.items.push(node.getPath());
+                    this.sizes.set(node.getPath(),  {height:meta.get('image_height')||'n/a',
+                        width:meta.get('image_width')||'n/a'});
+                }
+            }.bind(this));
+        }else{
+            var meta = node.getMetadata();
+            if(meta.get('is_image')=='1'){
                 this.nodes.set(node.getPath(),node);
-				this.items.push(node.getPath());
-				this.sizes.set(node.getPath(),  {height:meta.get('image_height')||'n/a', 
-												 width:meta.get('image_width')||'n/a'});
-			}
-		}.bind(this));	
-		
+                this.items.push(node.getPath());
+                this.sizes.set(node.getPath(),  {height:meta.get('image_height')||'n/a',
+                    width:meta.get('image_width')||'n/a'});
+            }
+        }
+
 		if(!sCurrentFile && this.items.length) sCurrentFile = this.items[0];
 		this.currentFile = sCurrentFile;
 		
@@ -485,13 +499,28 @@ Class.create("Diaporama", AbstractEditor, {
     },
 	
 	updateImage : function(){
-		var dimObject = this.sizes.get(this.currentFile);
+
+        var node = this.nodes.get(this.currentFile);
+        if(node.getMetadata().get("image_dimensions_thumb")){
+            var sizeLoader = new Image();
+            var tmpThis = this;
+            sizeLoader.onload = function(){
+                node.getMetadata().set("image_width", this.width);
+                node.getMetadata().set("image_height", this.height);
+                node.getMetadata().set("image_dimensions_thumb", false);
+                tmpThis.sizes.set(tmpThis.currentFile, {width:this.width, height: this.height});
+                tmpThis.updateImage();
+            };
+            sizeLoader.src = this.baseUrl + encodeURIComponent(this.currentFile);
+            return;
+        }
+
+        var dimObject = this.sizes.get(this.currentFile);
 		this.crtHeight = dimObject.height;
 		this.crtWidth = dimObject.width;
 		if(this.crtWidth){
 			this.crtRatio = this.crtHeight / this.crtWidth;
 		}
-		this.downloadButton.addClassName("disabled");
 		new Effect.Opacity(this.imgTag, {afterFinish : function(){
 			this.jsImageLoading = true;
 			this.jsImage.src  = this.baseUrl + encodeURIComponent(this.currentFile);
@@ -500,8 +529,9 @@ Class.create("Diaporama", AbstractEditor, {
 				this.crtHeight = this.imgTag.getHeight();
 				this.crtRatio = this.crtHeight / this.crtWidth;
 			}
+            this.imgTag.show();
 		}.bind(this), from:1.0,to:0, duration:0.3});
-        
+
         this.updateInfoPanel();
 	},
 
@@ -606,6 +636,12 @@ Class.create("Diaporama", AbstractEditor, {
 		}
 	},
 	
+    getSharedPreviewTemplate : function(node){
+
+        return new Template('<img width="#{WIDTH}" height="#{HEIGHT}" src="#{DL_CT_LINK}">');
+
+    },
+
 	/**
 	 * 
 	 * @param ajxpNode AjxpNode
@@ -617,14 +653,34 @@ Class.create("Diaporama", AbstractEditor, {
             className:'thumbnail_iconlike_shadow',
             align:"absmiddle"
         });
+        if(!parseInt(ajxpNode.getMetadata().get("image_width"))){
+            var imgObject = new Image();
+            imgObject.onload = function(){
+                img.DIMENSIONS_LOADING = false;
+                ajxpNode.getMetadata().set("image_dimensions_thumb", true);
+                ajxpNode.getMetadata().set("image_width", this.width);
+                ajxpNode.getMetadata().set("image_height", this.height);
+            }
+            imgObject.onerror = function(){
+                img.DIMENSIONS_LOADING = false;
+            };
+            img.DIMENSIONS_LOADING = true;
+            imgObject.src = Diaporama.prototype.getThumbnailSource(ajxpNode);
+        }
 		var div = new Element('div');
 		div.insert(img);
-		div.resizePreviewElement = function(dimensionObject){			
-			var imgDim = {
-				width:parseInt(ajxpNode.getMetadata().get("image_width")), 
-				height:parseInt(ajxpNode.getMetadata().get("image_height"))
-			};
-			var styleObj = fitRectangleToDimension(imgDim, dimensionObject);
+		div.resizePreviewElement = function(dimensionObject){
+            var styleObj;
+            if(!parseInt(ajxpNode.getMetadata().get("image_width"))){
+                styleObj = fitRectangleToDimension({width:50,height:50}, dimensionObject);
+                if(img.DIMENSIONS_LOADING) window.setTimeout(function(){ div.resizePreviewElement(dimensionObject); }, 1000);
+            }else{
+                var imgDim = {
+                    width:parseInt(ajxpNode.getMetadata().get("image_width")),
+                    height:parseInt(ajxpNode.getMetadata().get("image_height"))
+                };
+                styleObj = fitRectangleToDimension(imgDim, dimensionObject);
+            }
 			img.setStyle(styleObj);
 			div.setStyle({
 				height:styleObj.height, 
@@ -640,7 +696,7 @@ Class.create("Diaporama", AbstractEditor, {
 			if(!theImage.openBehaviour){
 				var opener = new Element('div').update(MessageHash[411]);
 				opener.setStyle({
-					width:styleObj.width, 
+					width:(styleObj?styleObj.width:''),
 					display:'none', 
 					position:'absolute', 
 					color: 'white',
@@ -664,9 +720,9 @@ Class.create("Diaporama", AbstractEditor, {
             var realLeftOffset = Math.max(off.left, theImage.parentNode.positionedOffset().left);
 			theImage.previewOpener.setStyle({
                 display:'block',
-                left: realLeftOffset + 'px',
-                width:theImage.getWidth() + "px",
-                top: (off.top + theImage.getHeight() - theImage.previewOpener.getHeight()) + "px"
+                left: (realLeftOffset + 1) + 'px',
+                width: (theImage.getWidth() - 2) + "px",
+                top: (off.top + theImage.getHeight() - theImage.previewOpener.getHeight() -1 )  + "px"
             });
 		});
 		img.observe("mouseout", function(event){
@@ -678,11 +734,17 @@ Class.create("Diaporama", AbstractEditor, {
 	},
 	
 	getThumbnailSource : function(ajxpNode){
-		var source = ajxpServerAccessPath+"&get_action=preview_data_proxy&get_thumb=true&file="+encodeURIComponent(ajxpNode.getPath());
-		var preview_seed = ajxpNode.getParent().getMetadata().get('preview_seed');
-		if(preview_seed){
-			source += "&rand="+preview_seed;
-		}
+        var repoString = "";
+        if(ajaxplorer.repositoryId && ajxpNode.getMetadata().get("repository_id") && ajxpNode.getMetadata().get("repository_id") != ajaxplorer.repositoryId){
+            repoString = "&tmp_repository_id=" + ajxpNode.getMetadata().get("repository_id");
+        }
+		var source = ajxpServerAccessPath + repoString + "&get_action=preview_data_proxy&get_thumb=true&file="+encodeURIComponent(ajxpNode.getPath());
+		if(ajxpNode.getParent()){
+            var preview_seed = ajxpNode.getParent().getMetadata().get('preview_seed');
+    		if(preview_seed){
+    			source += "&rand="+preview_seed;
+    		}
+        }
 		return source;
 	}
 	

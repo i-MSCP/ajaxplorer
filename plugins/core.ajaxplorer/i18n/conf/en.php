@@ -1,28 +1,28 @@
 <?php
 /*
-* Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
-* This file is part of AjaXplorer.
+* Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+* This file is part of Pydio.
 *
-* AjaXplorer is free software: you can redistribute it and/or modify
+* Pydio is free software: you can redistribute it and/or modify
 * it under the terms of the GNU Affero General Public License as published by
 * the Free Software Foundation, either version 3 of the License, or
 * (at your option) any later version.
 *
-* AjaXplorer is distributed in the hope that it will be useful,
+* Pydio is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU Affero General Public License for more details.
 *
 * You should have received a copy of the GNU Affero General Public License
-* along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+* along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
 *
-* The latest code can be found at <http://www.ajaxplorer.info/>.
+* The latest code can be found at <http://pyd.io/>.
 */
 $mess=array(
 "Main"      => "Main Options",
 "App Title" => "Application Title",
 "Your application title" => "This title will appear as the window title, in the splash screen.",
-"Main container for core AjaXplorer settings (application title, sharing, webdav server config, etc...)" => "Main container for core AjaXplorer settings (application title, sharing, webdav server config, etc...)",
+"Main container for core Pydio settings (application title, sharing, webdav server config, etc...)" => "Main container for core Pydio settings (application title, sharing, webdav server config, etc...)",
 "Default Language" => "Default Language",
 "Default language when a user does not have set his/her own." => "Default language when a user does not have set his/her own.",
 "Sharing" => "Sharing",
@@ -48,9 +48,9 @@ $mess=array(
 "Host used in webDAV protocol. Should be detected by default. Please READ THE DOC to safely use this feature." => "Host used in webDAV protocol. Should be detected by default. Please READ THE DOC to safely use this feature.",
 "Digest Realm" => "Digest Realm",
 "Default realm for authentication. Please READ THE DOC to safely use this feature." => "Default realm for authentication. Please READ THE DOC to safely use this feature.",
-"Miscalleneous" => "Miscalleneous",
+"Miscellaneous" => "Miscellaneous",
 "Command-line Active" => "Command-line Active",
-"Use AjaXplorer framework via the command line, allowing CRONTAB jobs or background actions." => "Use AjaXplorer framework via the command line, allowing CRONTAB jobs or background actions.",
+"Use Pydio framework via the command line, allowing CRONTAB jobs or background actions." => "Use Pydio framework via the command line, allowing CRONTAB jobs or background actions.",
 "Command-line PHP" => "Command-line PHP",
 "On specific hosts, you may have to use a specific path to access the php command line" => "On specific hosts, you may have to use a specific path to access the php command line",
 "Filename length" => "Filename length",
@@ -65,17 +65,17 @@ $mess=array(
 "Password" => "Password",
 "User password - Can be overriden on a per-user basis." => "User password - Can be overriden on a per-user basis.",
 "Session credentials" => "Session credentials",
-"Try to use the current AjaXplorer user credentials for connecting. Warning, the AJXP_SESSION_SET_CREDENTIALS config must be set to true!" => "Try to use the current AjaXplorer user credentials for connecting. Warning, the AJXP_SESSION_SET_CREDENTIALS config must be set to true!",
+"Try to use the current Pydio user credentials for connecting. Warning, the AJXP_SESSION_SET_CREDENTIALS config must be set to true!" => "Try to use the current Pydio user credentials for connecting. Warning, the AJXP_SESSION_SET_CREDENTIALS config must be set to true!",
 "User name" => "User name",
 "User password" => "User password",
 "Repository Slug" => "Repository Slug",
 "Alias" => "Alias",
-"Alias for replacing the generated unique id of the repository" => "Alias for replacing the generated unique id of the repository",
+"Alias for replacing the generated unique id of the repository" => "Alias for replacing the generated unique id of the workspace",
 "Template Options" => "Template Options",
 "Allow to user" => "Allow to user",
-"Allow non-admin users to create a repository from this template." => "Allow non-admin users to create a repository from this template.",
+"Allow non-admin users to create a repository from this template." => "Allow non-admin users to create a workspace from this template.",
 "Default Label" => "Default Label",
-"Prefilled label for the new repository, you can use the AJXP_USER keyworkd in it." => "Prefilled label for the new repository, you can use the AJXP_USER keyworkd in it.",
+"Prefilled label for the new repository, you can use the AJXP_USER keyworkd in it." => "Prefilled label for the new workspace, you can use the AJXP_USER keyworkd in it.",
 "Small Icon" => "Small Icon",
 "16X16 Icon for representing the template" => "16X16 Icon for representing the template",
 "Big Icon" => "Big Icon",
@@ -84,7 +84,7 @@ $mess=array(
 "Recycle Bin Folder" => "Recycle Bin Folder",
 "Leave empty if you do not want to use a recycle bin." => "Leave empty if you do not want to use a recycle bin.",
 "Default Rights" => "Default Rights",
-"This right pattern (empty, r, or rw) will be applied at user creation for this repository." => "This right pattern (empty, r, or rw) will be applied at user creation for this repository.",
+"This right pattern (empty, r, or rw) will be applied at user creation for this repository." => "This right pattern (empty, r, or rw) will be applied at user creation for this workspace.",
 "Character Encoding" => "Character Encoding",
 "If your server does not set correctly its charset, it can be good to specify it here manually." => "If your server does not set correctly its charset, it can be good to specify it here manually.",
 "Pagination Threshold" => "Pagination Threshold",
@@ -92,7 +92,7 @@ $mess=array(
 "#Items per page" => "#Items per page",
 "Once in pagination mode, number of items to display per page." => "Once in pagination mode, number of items to display per page.",
 "Default Metasources" => "Default Metasources",
-"Comma separated list of metastore and meta plugins, that will be automatically applied to all repositories created with this driver" => "Comma separated list of metastore and meta plugins, that will be automatically applied to all repositories created with this driver",
+"Comma separated list of metastore and meta plugins, that will be automatically applied to all repositories created with this driver" => "Comma separated list of metastore and meta plugins, that will be automatically applied to all workspaces created with this driver",
 "Auth Driver Commons" => "Auth Driver Commons",
 "Transmit Clear Pass" => "Transmit Clear Pass",
 "Whether the password will be transmitted clear or encoded between the client and the server" => "Whether the password will be transmitted clear or encoded between the client and the server",
@@ -114,6 +114,28 @@ $mess=array(
 "Comma-separated list of specific files to hide" => "Comma-separated list of specific files to hide",
 "Metadata and indexation" => "Metadata and indexation",
 "Default Metasources" => "Default Metasources",
-"Comma-separated list of metastore and meta plugins, that will be automatically applied to all repositories created with this driver" => "Comma-separated list of metastore and meta plugins, that will be automatically applied to all repositories created with this driver",
+"Comma-separated list of metastore and meta plugins, that will be automatically applied to all repositories created with this driver" => "Comma-separated list of metastore and meta plugins, that will be automatically applied to all workspaces created with this driver",
+"Pydio Main Options" => "Pydio Main Options",
+"Server URL" => "Server URL",
+"Server URL used to build share links and notifications. It will be detected if empty." => "Server URL used to build share links and notifications. It will be detected if empty.",
+"Force Basic Auth" => "Force Basic Auth",
+"This authentication mechanism is less secure, but will avoid the users having to re-enter a password in some case." => "This authentication mechanism is less secure, but will avoid the users having to re-enter a password in some case.",
+"Browser Access" => "Browser Access",
+"Display the list of files and folder when accessing through the browser" => "Display the list of files and folder when accessing through the browser",
+"Command Line" => "Command Line",
+"Use COM class" => "Use COM class",
+"On Windows running IIS, set this option to true if the COM extension is loaded, this may enable the use of the php command line." => "On Windows running IIS, set this option to true if the COM extension is loaded, this may enable the use of the php command line.",
+"Disable Zip browsing" => "Disable Zip browsing",
+"Disable Zip files inline browsing. This can be necessary if you always store huge zip archives: it can have some impact on performance." => "Disable Zip files inline browsing. This can be necessary if you always store huge zip archives: it can have some impact on performance.",
+"Zip Encoding" => "Zip Encoding",
+"Set up a specific encoding (try IBM850 or CP437) for filenames to fix characters problems during Zip creation. This may create OS-incompatible archives (Win/Mac)." => "Set up a specific encoding (try IBM850 or CP437) for filenames to fix characters problems during Zip creation. This may create OS-incompatible archives (Win/Mac).",
+"Repository Commons" => "Repository Commons",
+"Description" => "Description",
+"A user-defined description of the content of this workspace" => "A user-defined description of the content of this workspace",
+"Group Path" => "Group Path",
+"Set this repository group owner : only users of this group will see it" => "Set this repository group owner : only users of this group will see it",
+"Disable WebDAV" => "Disable WebDAV",
+"Explicitly disable WebDAV access for this repository." => "Explicitly disable WebDAV access for this repository.",
+"Allow to group admins" => "Allow to group admins",
+"Allow group administrators to create a repository from this template." => "Allow group administrators to create a repository from this template.",
 );
-?>

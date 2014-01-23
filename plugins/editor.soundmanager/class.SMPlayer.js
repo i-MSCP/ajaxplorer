@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 window.SM2_DEFER = true;
 if(!$$("html")[0].hasClassName("no-canvas") && !window.soundManager && ajaxplorer.findEditorById("editor.soundmanager")){
@@ -36,17 +36,17 @@ if(!$$("html")[0].hasClassName("no-canvas") && !window.soundManager && ajaxplore
             window.threeSixtyPlayer.config.useEQData = true;
             // enable this in SM2 as well, as needed
             if (window.threeSixtyPlayer.config.useWaveformData) {
-                window.soundManager.flash9Options.useWaveformData = true;
+              window.soundManager.flash9Options.useWaveformData = true;
             }
             if (window.threeSixtyPlayer.config.useEQData) {
-                window.soundManager.flash9Options.useEQData = true;
+              window.soundManager.flash9Options.useEQData = true;
             }
             if (window.threeSixtyPlayer.config.usePeakData) {
-                window.soundManager.flash9Options.usePeakData = true;
+              window.soundManager.flash9Options.usePeakData = true;
             }
             if (window.threeSixtyPlayer.config.useWaveformData || window.threeSixtyPlayer.flash9Options.useEQData || window.threeSixtyPlayer.flash9Options.usePeakData) {
-                // even if HTML5 supports MP3, prefer flash so the visualization features can be used.
-                window.soundManager.preferFlash = true;
+              // even if HTML5 supports MP3, prefer flash so the visualization features can be used.
+              window.soundManager.preferFlash = true;
             }
 
             window.soundManager.useFastPolling = true; // increased JS callback frequency, combined with useHighPerformance = true
@@ -116,15 +116,14 @@ function hookToFilesList(){
     var fList = fLists[0];
     fList.observe("rows:didInitialize", function(){
         if(fList.getDisplayMode() != "list" || !window.soundManager || !window.soundManager.enabled) return;
-        if(!ajaxplorer.findEditorById("editor.soundmanager")) return;
         var resManager = ajaxplorer.findEditorById("editor.soundmanager").resourcesManager;
         if(!resManager.loaded){
             resManager.load();
         }
         $A(fList.getItems()).each(function(row){
-            if(!row.ajxpNode || row.ajxpNode.getAjxpMime() != "mp3") return;
+            if(!row.ajxpNode || (row.ajxpNode.getAjxpMime() != "mp3" && row.ajxpNode.getAjxpMime() != "wav")) return;
             addVolumeButton();
-            var url = ajxpBootstrap.parameters.get('ajxpServerAccess')+'&get_action=audio_proxy&file='+base64_encode(row.ajxpNode.getPath())+ '&fake=extension.mp3';
+            var url = ajxpBootstrap.parameters.get('ajxpServerAccess')+'&get_action=audio_proxy&file='+base64_encode(row.ajxpNode.getPath())+ '&fake=extension.'+row.ajxpNode.getAjxpMime();
             var player = new Element("div", {className:"ui360 ui360-micro"}).update(new Element("a", {href:url}).update(""));
             row.down("span#ajxp_label").setStyle({backgroundImage:'none'}).insert({top:player});
             threeSixtyPlayer.config.items = [player];
@@ -191,12 +190,57 @@ function addVolumeButton(){
 
 Class.create("SMPlayer", AbstractEditor, {
 
-    fullscreenMode: false,
+	fullscreenMode: false,
+	
+	initialize: function($super, oFormObject, options){
+        this.element = oFormObject;
+        this.editorOptions = options;
+	},
 
-    initialize: function($super, oFormObject){
+    open : function($super, ajxpNode){
+        this.currentRichPreview = this.getPreview(ajxpNode, true);
+        this.element.down(".smplayer_title").update(ajxpNode.getLabel());
+        this.element.down(".smplayer_preview_element").insert(this.currentRichPreview);
+        window.setTimeout(function(){
+            try{this.currentRichPreview.down('span.sm2-360btn').click();}catch(e){}
+        }.bind(this), 400);
+        modal.setCloseValidation(function(){
+            this.currentRichPreview.destroyElement();
+        }.bind(this));
     },
 
-    getPreview : function(ajxpNode, rich){
+    /**
+   	 * Closes the editor
+   	 * @returns Boolean
+   	 */
+   	close : function($super){
+        this.currentRichPreview.destroyElement();
+   		return $super.close();
+   	},
+
+    getSharedPreviewTemplate: function(node){
+
+        var crtRoot = document.location.href.split("#").shift().split("?").shift();
+        var rgxtrim = new RegExp('\/+$');
+        crtRoot = crtRoot.replace(rgxtrim, '');
+
+        var tpl = new Template('<link rel="stylesheet" type="text/css" href="'+crtRoot+'/plugins/editor.soundmanager/sm/shared/mp3-player-button.css" />\n\
+&lt;script type="text/javascript" src="'+crtRoot+'/plugins/editor.soundmanager/sm/shared/soundmanager2.js"&gt;&lt;/script&gt;\n\
+&lt;script type="text/javascript" src="'+crtRoot+'/plugins/editor.soundmanager/sm/shared/mp3-player-button.js"&gt;&lt;/script&gt;\n\
+&lt;script&gt;\n \
+soundManager.setup({\n\
+      url: "'+crtRoot+'/plugins/editor.soundmanager/sm/swf/",\n\
+      debugMode : false\n\
+});\n\
+&lt;/script&gt;\n\
+<a href="#{DL_CT_LINK}&fake=ext.'+getAjxpMimeType(node)+'" class="sm2_button">'+node.getLabel()+'</a> '+node.getLabel());
+
+        return tpl;
+
+    },
+
+
+	getPreview : function(ajxpNode, rich){
         if(!window.soundManager || !window.soundManager.enabled){
             var im = new Element('img', {src:resolveImageSource(ajxpNode.getIcon(),'/images/mimes/ICON_SIZE',64),align:"absmiddle"});
             return im;
@@ -204,9 +248,9 @@ Class.create("SMPlayer", AbstractEditor, {
         addVolumeButton();
         var url = ajxpBootstrap.parameters.get('ajxpServerAccess')+'&get_action=audio_proxy&file='+base64_encode(ajxpNode.getPath());
         if(rich){
-            url += '&rich_preview=true&fake=extension.mp3';
+            url += '&rich_preview=true&fake=extension.'+ajxpNode.getAjxpMime();
         }else{
-            url += '&fake=extension.mp3';
+            url += '&fake=extension.'+ajxpNode.getAjxpMime();
         }
         var container = new Element("div", {className:"ui360container"+(rich?" nobackground":"")});
         var player = new Element("div", {className:"ui360"+(rich?" ui360-vis ui360-vis-retracted":"")}).update(new Element("a", {href:url}).update(""));
@@ -223,6 +267,9 @@ Class.create("SMPlayer", AbstractEditor, {
                     }catch (e){}
                 }
             }else{
+                var addLeft = 12;
+                if(container.up('.thumbnail_selectable_cell.detailed')) addLeft = 2;
+
                 if(element.height >= 50)
                 {
                     var mT = parseInt((element.height - 50)/2) + element.margin;
@@ -233,23 +280,29 @@ Class.create("SMPlayer", AbstractEditor, {
                     var mT = 0;
                     var mB = element.height-40;
                     container.addClassName("nobackground");
-                    container.setStyle({paddingTop:mT+'px', paddingBottom:'0px', marginBottom:mB+'px'});
+                    if(mB + addLeft < 0) {
+                        container.setStyle({marginTop:(mB/2)+'px', paddingBottom:'0px', marginLeft:((mB/2)-2)+'px'});
+                    }else{
+                        container.setStyle({paddingTop:mT+'px', paddingBottom:'0px', marginBottom:mB+'px'});
+                    }
                 }
                 container.setStyle({
-                    paddingLeft:Math.ceil((element.width-50)/2)+12+"px"
+                    paddingLeft:Math.ceil((element.width-50)/2)+addLeft+"px"
                 });
             }
         };
         container.destroyElement = function(){
-            var urlKey = container.down('a.sm2_link').href;
-            if(threeSixtyPlayer.getSoundByURL(urlKey)){
-                var theSound = threeSixtyPlayer.getSoundByURL(urlKey);
-                threeSixtyPlayer.sounds = $A(threeSixtyPlayer.sounds).without(theSound);
-                threeSixtyPlayer.soundsByURL[urlKey] = null;
-                delete threeSixtyPlayer.soundsByURL[urlKey];
-                soundManager.destroySound(theSound.sID);
+            if(container.down('a.sm2_link')) {
+                var urlKey = container.down('a.sm2_link').href;
+                if(threeSixtyPlayer.getSoundByURL(urlKey)){
+                    var theSound = threeSixtyPlayer.getSoundByURL(urlKey);
+                    threeSixtyPlayer.sounds = $A(threeSixtyPlayer.sounds).without(theSound);
+                    threeSixtyPlayer.soundsByURL[urlKey] = null;
+                    delete threeSixtyPlayer.soundsByURL[urlKey];
+                    soundManager.destroySound(theSound.sID);
+                }
             }
-        }
+        };
 
         threeSixtyPlayer.config.items = [player];
         threeSixtyPlayer.init();
@@ -262,7 +315,7 @@ Class.create("SMPlayer", AbstractEditor, {
     },
 
     filterElement : function(element, ajxpNode){
-
+        
     }
 
 });

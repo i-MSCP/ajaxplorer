@@ -1,28 +1,33 @@
 <?php
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 
 defined('AJXP_EXEC') or die( 'Access not allowed');
- 
-class AjaXplorerUpgrader {
 
+
+/**
+ * @package AjaXplorer_Plugins
+ * @subpackage Action
+ */
+class AjaXplorerUpgrader
+{
     private $archiveURL;
     private $archiveHash;
     private $archiveHashMethod;
@@ -32,6 +37,8 @@ class AjaXplorerUpgrader {
     private $cleanFile = "UPGRADE/CLEAN-FILES";
     private $additionalScript = "UPGRADE/PHP-SCRIPT";
     private $releaseNote = "UPGRADE/NOTE";
+    private $htmlInstructions = "UPGRADE/NOTE-HTML";
+    private $dbUpgrade = "UPGRADE/DB-UPGRADE";
     private $installPath;
     private static $context = null;
 
@@ -44,55 +51,65 @@ class AjaXplorerUpgrader {
     public $result = "";
     public $currentStepTitle;
 
-    public function __construct($archiveURL, $hash, $method, $backupFiles = array()){
+    public function __construct($archiveURL, $hash, $method, $backupFiles = array())
+    {
         $this->archiveURL = $archiveURL;
         $this->archiveHash = $hash;
         $this->archiveHashMethod = $method;
         $this->markedFiles = $backupFiles;
 
         $this->installPath = AJXP_INSTALL_PATH;
-        if($this->debugMode){
+        if ($this->debugMode) {
             @mkdir(AJXP_INSTALL_PATH."/upgrade_test");
             $this->installPath = AJXP_INSTALL_PATH."/upgrade_test";
         }
 
         $this->workingFolder = AJXP_DATA_PATH."/tmp/update";
         $this->steps = array(
-            "checkDownloadFolder"   => "Checking download permissions",
-            "downloadArchive"       => "Downloading upgrade archive",
-            "checkArchiveIntegrity" => "Checking archive integrity",
-            "checkTargetFolder"     => "Checking folders permissions",
-            "extractArchive"        => "Extracting Archive",
-            "backupMarkedFiles"     => "Backuping your modified files",
-            "copyCodeFiles"         => "Copying core source files",
-            "restoreMarkedFiles"     => "Restoring your modified files",
-            "duplicateConfFiles"    => "Copying configuration files",
-            "cleanUnusedFiles"      => "Deleting unused files",
-            "specificTask"          => "Running specific upgrade task",
-            "updateVersion"         => "Everything went ok, upgrading version!",
-            "clearCache"            => "Clearing plugins cache",
-            "displayNote"           => "Release note : ",
+            "checkDownloadFolder"       => "Checking download permissions",
+            "downloadArchive"           => "Downloading upgrade archive",
+            "checkArchiveIntegrity"     => "Checking archive integrity",
+            "checkTargetFolder"         => "Checking folders permissions",
+            "extractArchive"            => "Extracting Archive",
+            "backupMarkedFiles"         => "Backuping your modified files",
+            "copyCodeFiles"             => "Copying core source files",
+            "restoreMarkedFiles"        => "Restoring your modified files",
+            "duplicateConfFiles"        => "Copying configuration files",
+            "cleanUnusedFiles"          => "Deleting unused files",
+            "upgradeDB"                 => "Upgrading database",
+            "specificTask"              => "Running specific upgrade task",
+            "updateVersion"             => "Everything went ok, upgrading version!",
+            "clearCache"                => "Clearing plugins cache",
+            "displayNote"               => "Release note : ",
+            "displayUpgradeInstructions"=> "Upgrade instructions",
         );
 
     }
 
-    public static function configureProxy($proxyHost, $proxyUser, $proxyPass){
+    public static function configureProxy($proxyHost, $proxyUser, $proxyPass)
+    {
         $proxy = array( 'http' => array( 'proxy' => 'tcp://'.$proxyHost, 'request_fulluri' => true ) );
-        if(!empty($proxyUser) && !empty($proxyPass)) {
+        if (!empty($proxyUser) && !empty($proxyPass)) {
             $auth = base64_encode($proxyUser.":".$proxyPass);
             $proxy['http']['header'] = "Proxy-Authorization: Basic $auth";
         }
         self::$context = stream_context_create($proxy);
     }
 
-    static function getUpgradePath($url, $format = "php", $channel="stable"){
-        $json = AJXP_Utils::getRemoteContent($url."?version=".AJXP_VERSION."&channel=".$channel, null, self::$context);
+    public static function getUpgradePath($url, $format = "php", $channel="stable")
+    {
+        if (isSet(self::$context)) {
+            $json = file_get_contents($url."?channel=".$channel."&version=".AJXP_VERSION."&package=pydio-core", null, self::$context);
+        } else {
+            $json = AJXP_Utils::getRemoteContent($url."?channel=".$channel."&version=".AJXP_VERSION."&package=pydio-core");
+        }
         if($format == "php") return json_decode($json, true);
         else return $json;
     }
 
-    function hasNextStep(){
-        if($this->step < count($this->steps) && $this->error == NULL){
+    public function hasNextStep()
+    {
+        if ($this->step < count($this->steps) && $this->error == NULL) {
             $stepValues = array_values($this->steps);
             $this->currentStepTitle = $stepValues[$this->step];
             return true;
@@ -100,58 +117,63 @@ class AjaXplorerUpgrader {
         return false;
     }
 
-    function execute(){
+    public function execute()
+    {
         $stepKeys = array_keys($this->steps);
-        try{
-            if(method_exists($this, $stepKeys[$this->step])){
+        try {
+            if (method_exists($this, $stepKeys[$this->step])) {
                 $this->result = call_user_func(array($this, $stepKeys[$this->step]));
-            }else{
+            } else {
                 $this->result = "Skipping step, method not found";
             }
-        }catch(Exception $e){
+        } catch (Exception $e) {
             $this->error = $e->getMessage();
         }
         $this->step ++;
     }
 
-    function checkDownloadFolder(){
-        if(!is_dir($this->workingFolder)){
+    public function checkDownloadFolder()
+    {
+        if (!is_dir($this->workingFolder)) {
             $t = @mkdir($this->workingFolder, 0755, true);
             if($t === false) throw new Exception("Cannot create target folder for downloading upgrade archive!");
         }
         return "OK";
     }
 
-    function checkTargetFolder(){
-        if(!is_writable(AJXP_INSTALL_PATH)){
+    public function checkTargetFolder()
+    {
+        if (!is_writable(AJXP_INSTALL_PATH)) {
             throw new Exception("The root install path is not writeable, no file will be copied!
             The archive is available on your server, you can copy its manually to override the current installation.");
         }
         return "OK";
     }
 
-    function downloadArchive(){
+    public function downloadArchive()
+    {
         $this->archive = $this->workingFolder."/".basename($this->archiveURL);
-        if($this->debugMode && is_file($this->archive)) {
+        if ($this->debugMode && is_file($this->archive)) {
             return "Already downloaded";
         }
-        $content = AJXP_Utils::getRemoteContent($this->archiveURL, null, self::$context);
-        if($content === false || strlen($content) == 0){
+        $content = AJXP_Utils::getRemoteContent($this->archiveURL);
+        if ($content === false || strlen($content) == 0) {
             throw new Exception("Error while downloading");
         }
         file_put_contents($this->archive, $content);
         return "File saved in ".$this->archive;
     }
 
-    function extractArchive(){
+    public function extractArchive()
+    {
         require_once(AJXP_BIN_FOLDER . "/pclzip.lib.php");
         $archive = new PclZip($this->archive);
         $result = $archive->extract(PCLZIP_OPT_PATH, $this->workingFolder);
-        if($result <= 0){
+        if ($result <= 0) {
             throw new Exception($archive->errorInfo(true));
-        }else{
+        } else {
             // Check that there is a new folder without zip extension
-            if(is_dir($this->workingFolder."/".substr(basename($this->archive), 0, -4)) ){
+            if (is_dir($this->workingFolder."/".substr(basename($this->archive), 0, -4)) ) {
                 $this->workingFolder = $this->workingFolder."/".substr(basename($this->archive), 0, -4);
             }
             return "Extracted folder ".$this->workingFolder;
@@ -159,64 +181,66 @@ class AjaXplorerUpgrader {
 
     }
 
-    function checkArchiveIntegrity(){
-        if(!is_file($this->archive)){
+    public function checkArchiveIntegrity()
+    {
+        if (!is_file($this->archive)) {
             throw new Exception("Cannot find archive file!");
         }
         $result = hash_file($this->archiveHashMethod, $this->archive);
-        if($result != $this->archiveHash){
+        if ($result != $this->archiveHash) {
             throw new Exception("Warning the archive seems corrupted, you should re-download it!");
         }
         return "Hash is ok ($this->archiveHash)";
     }
 
-    function backupMarkedFiles(){
-
+    public function backupMarkedFiles()
+    {
         $targetFolder = $this->installPath;
-        if(!is_array($this->markedFiles) || !count($this->markedFiles)){
+        if (!is_array($this->markedFiles) || !count($this->markedFiles)) {
             return "Nothing to do";
         }
-        foreach($this->markedFiles as $index => $file){
+        foreach ($this->markedFiles as $index => $file) {
             $file = trim($file);
-            if(!empty($file) && is_file($targetFolder."/".$file)){
+            if (!empty($file) && is_file($targetFolder."/".$file)) {
                 $newName = $file.".orig-".date("Ymd");
                 copy($targetFolder."/".$file, $targetFolder."/".$newName);
-            }else{
+            } else {
                 unset($this->markedFiles[$index]);
             }
         }
-        if(!count($this->markedFiles)){
+        if (!count($this->markedFiles)) {
             return "Nothing to do";
         }
         return "Backup of ".count($this->markedFiles)." file(s) marked as preserved.";
     }
 
-    function copyCodeFiles(){
+    public function copyCodeFiles()
+    {
         // CORE & PLUGINS
         $targetFolder = $this->installPath;
         self::copy_r($this->workingFolder."/core", $targetFolder."/core");
         self::copy_r($this->workingFolder."/plugins", $targetFolder."/plugins");
         $rootFiles = glob($this->workingFolder."/*.php");
-        if($rootFiles !== false){
-            foreach($rootFiles as $file){
+        if ($rootFiles !== false) {
+            foreach ($rootFiles as $file) {
                 copy($file, $targetFolder."/".basename($file));
             }
             return "Upgraded core, plugins and base access points.";
-        }else{
+        } else {
             return "Upgrade core and plugins. Nothing to do at the base";
         }
     }
 
-    function restoreMarkedFiles(){
-
-        if(!count($this->markedFiles)){
+    public function restoreMarkedFiles()
+    {
+        if (!count($this->markedFiles)) {
             return "Nothing to do";
         }
         $targetFolder = $this->installPath;
-        foreach($this->markedFiles as $file){
+        foreach ($this->markedFiles as $file) {
             $bakupName = $file.".orig-".date("Ymd");
             $newName = $file.".new-".date("Ymd");
-            if(is_file($targetFolder."/".$file) && is_file($targetFolder."/".$bakupName)){
+            if (is_file($targetFolder."/".$file) && is_file($targetFolder."/".$bakupName)) {
                 copy($targetFolder."/".$file, $targetFolder."/".$newName);
                 copy($targetFolder."/".$bakupName, $targetFolder."/".$file);
                 unlink($targetFolder."/".$bakupName);
@@ -226,10 +250,11 @@ class AjaXplorerUpgrader {
     }
 
 
-    function duplicateConfFiles(){
+    public function duplicateConfFiles()
+    {
         $confFiles = glob($this->workingFolder."/conf/*.php");
-        if($confFiles !== false){
-            foreach($confFiles as $file){
+        if ($confFiles !== false) {
+            foreach ($confFiles as $file) {
                 $newFileName = $this->installPath."/conf/".basename($file).".new-".date("Ymd");
                 copy($file, $newFileName);
             }
@@ -238,16 +263,16 @@ class AjaXplorerUpgrader {
     }
 
 
-    function cleanUnusedFiles(){
-
+    public function cleanUnusedFiles()
+    {
         if(!is_file($this->workingFolder."/".$this->cleanFile)) return "Nothing to do.";
         $deleted = array();
-        foreach(file($this->workingFolder."/".$this->cleanFile) as $file){
+        foreach (file($this->workingFolder."/".$this->cleanFile) as $file) {
             $file = trim($file);
-            if(is_file($this->installPath."/".$file)){
-                if(in_array($file, $this->markedFiles)){
+            if (is_file($this->installPath."/".$file)) {
+                if (in_array($file, $this->markedFiles)) {
                     rename($this->installPath."/".$file, $this->installPath."/".$file.".unused");
-                }else{
+                } else {
                     unlink($this->installPath."/".$file);
                 }
                 $deleted[] = $file;
@@ -257,41 +282,118 @@ class AjaXplorerUpgrader {
 
     }
 
-    function specificTask(){
+    public function upgradeDB()
+    {
+        $confDriver = ConfService::getConfStorageImpl();
+        $authDriver = ConfService::getAuthDriverImpl();
+        $logger = AJXP_Logger::getInstance();
+        if (is_a($confDriver, "sqlConfDriver")) {
+            $conf = AJXP_Utils::cleanDibiDriverParameters($confDriver->getOption("SQL_DRIVER"));
+            if(!is_array($conf) || !isSet($conf["driver"])) return "Nothing to do";
+            switch ($conf["driver"]) {
+                case "sqlite":
+                case "sqlite3":
+                    $ext = ".sqlite";
+                    break;
+                case "postgre":
+                    $ext = ".pgsql";
+                    break;
+                case "mysql":
+                    $ext = (is_file($this->workingFolder."/".$this->dbUpgrade.".mysql")) ? ".mysql" : ".sql";
+                    break;
+                default:
+                    return "ERROR!, DB driver "+ $conf["driver"] +" not supported yet in __FUNCTION__";
+            }
 
+            $file = $this->dbUpgrade.$ext;
+            if(!is_file($this->workingFolder."/".$file)) return "Nothing to do.";
+            $sqlInstructions = file_get_contents($this->workingFolder."/".$file);
+
+            $parts = array_map("trim", explode("/* SEPARATOR */", $sqlInstructions));
+            $results = array();
+            $errors = array();
+
+            require_once(AJXP_BIN_FOLDER."/dibi.compact.php");
+            dibi::connect($test);
+            dibi::begin();
+            foreach ($parts as $sqlPart) {
+                if(empty($sqlPart)) continue;
+                try {
+                    dibi::nativeQuery($sqlPart);
+                    $results[] = $sqlPart;
+                } catch (DibiException $e) {
+                    $errors[] = $sqlPart. " (". $e->getMessage().")";
+                }
+            }
+            dibi::commit();
+            dibi::disconnect();
+
+            if (!count($errors)) {
+                return "Database successfully upgraded";
+            } else {
+                return "Database upgrade failed. <br>The following statements were executed : <br>".implode("<br>", $results).",<br><br> The following statements failed : <br>".implode("<br>", $errors)."<br><br> You should manually upgrade your DB.";
+            }
+
+        }
+
+    }
+
+    public function specificTask()
+    {
         if(!is_file($this->workingFolder."/".$this->additionalScript)) return "Nothing to do.";
         include($this->workingFolder."/".$this->additionalScript);
         return "Executed specific upgrade task.";
 
     }
 
-    function updateVersion(){
+    public function updateVersion()
+    {
         // Finally copy VERSION file
+        if (!is_file($this->workingFolder."/conf/VERSION")) {
+            return "<b>No VERSION file in archive</b>";
+        }
         copy($this->workingFolder."/conf/VERSION", $this->installPath."/conf/VERSION");
         $vCont = file_get_contents($this->installPath."/conf/VERSION");
         list($v, $date) = explode("__", $vCont);
         return "<b>Version upgraded to ".$v." ($date)</b>";
     }
 
-    function clearCache(){
+    public function clearCache()
+    {
         @unlink(AJXP_PLUGINS_CACHE_FILE);
         @unlink(AJXP_PLUGINS_REQUIRES_FILE);
         @unlink(AJXP_PLUGINS_MESSAGES_FILE);
+        $i18nFiles = glob(dirname(AJXP_PLUGINS_MESSAGES_FILE)."/i18n/*.ser");
+        if (is_array($i18nFiles)) {
+            foreach ($i18nFiles as $file) {
+                @unlink($file);
+            }
+        }
         return "Ok";
     }
 
-    function displayNote(){
-        if(is_file($this->workingFolder."/UPGRADE/NOTE")){
-            return nl2br(file_get_contents($this->workingFolder."/UPGRADE/NOTE"));
+    public function displayNote()
+    {
+        if (is_file($this->workingFolder."/".$this->releaseNote)) {
+            return nl2br(file_get_contents($this->workingFolder."/".$this->releaseNote));
+        }
+    }
+
+    public function displayUpgradeInstructions()
+    {
+        if (is_file($this->workingFolder."/".$this->htmlInstructions)) {
+            return "<div id='upgrade_last_html'>".file_get_contents($this->workingFolder."/".$this->htmlInstructions)."
+            <h1>Upgrade report</h1>
+            </div>";
         }
     }
 
 
-    public static function upgradeFrom324($oldLocation, $dryRun = true){
-
+    public static function upgradeFrom324($oldLocation, $dryRun = true)
+    {
         $mess = ConfService::getMessages();
         $logFile = AJXP_CACHE_DIR."/import_from_324.log";
-        if($dryRun){
+        if ($dryRun) {
             print("<b>".$mess["updater.10"]."</b><br><br>");
         }
 
@@ -476,29 +578,29 @@ class AjaXplorerUpgrader {
             ),
         );
 
-        if(!$dryRun){
+        if (!$dryRun) {
             $logFileHandle = fopen($logFile, "w");
         }
 
-        foreach($itemsToCopy as $item){
+        foreach ($itemsToCopy as $item) {
             $files = glob($oldLocation."/".$item["mask"]);
             if($files === false) continue;
-            foreach ($files as $fileOrFolder){
+            foreach ($files as $fileOrFolder) {
                 $target = AJXP_INSTALL_PATH."/".$item["target"];
-                if(is_file($fileOrFolder)){
+                if (is_file($fileOrFolder)) {
                     $l = "Copy $fileOrFolder to ".$target."/".basename($fileOrFolder)."\n";
-                    if($dryRun) {
+                    if ($dryRun) {
                         print(nl2br($l));
-                    }else {
+                    } else {
                         copy($fileOrFolder, $target."/".basename($fileOrFolder));
                         fwrite($logFileHandle, $l);
                     }
 
-                }else{
+                } else {
                     $l= "Copy recursively ".$fileOrFolder." to ".$target."/".basename($fileOrFolder)."\n";
-                    if($dryRun) {
+                    if ($dryRun) {
                         print(nl2br($l));
-                    }else {
+                    } else {
                         self::copy_r($fileOrFolder, $target."/".basename($fileOrFolder));
                         fwrite($logFileHandle, $l);
                     }
@@ -511,33 +613,33 @@ class AjaXplorerUpgrader {
         $lines = file($originalConfdir."/conf.php");
         $filteredLines = array();
         $mutedConstants = array();
-        foreach($lines as $line){
-            if(preg_match('/define\("(.*)", (.*)\);/', $line, $matches)){
+        foreach ($lines as $line) {
+            if (preg_match('/define\("(.*)", (.*)\);/', $line, $matches)) {
                 //var_dump($matches);
                 $value = trim($matches[2]);
-                if(!empty($value)){
-                    if($value[0] == "\""){
+                if (!empty($value)) {
+                    if ($value[0] == "\"") {
                         $strValue = substr($value, 1, strlen($value)-2);
-                        if(!empty($strValue)){
+                        if (!empty($strValue)) {
                             $mutedConstants[$matches[1]] = $strValue;
                         }
-                    }else if($value == "true"){
+                    } else if ($value == "true") {
                         $mutedConstants[$matches[1]] = true;
-                    }else if($value == "false"){
+                    } else if ($value == "false") {
                         $mutedConstants[$matches[1]] = false;
-                    }else if(is_numeric($value)){
+                    } else if (is_numeric($value)) {
                         $mutedConstants[$matches[1]] = intval($value);
-                    }else{
+                    } else {
                         eval("\$res = $value;");
                         $mutedConstants[$matches[1]] = $res;
                     }
                 }
                 $filteredLines[] = "//".$line;
-            }else{
+            } else {
                 $filteredLines[] = $line;
             }
         }
-        if(!$dryRun){
+        if (!$dryRun) {
             fwrite($logFileHandle, "Writing alternate version of conf.php without constants.");
         }
         file_put_contents($originalConfdir."/muted_conf.php", implode("", $filteredLines));
@@ -545,37 +647,37 @@ class AjaXplorerUpgrader {
         // NOW IMPORT THE MODIFIED CONF FILE AND GATHER ALL DATA
         include $originalConfdir."/muted_conf.php";
         $allOptions = array();
-        foreach ($configToPluginsConf as $localConfig){
+        foreach ($configToPluginsConf as $localConfig) {
             $localConfigName = $localConfig["name"];
-            if($localConfig["type"] == "constant" && isset($mutedConstants[$localConfigName])){
+            if ($localConfig["type"] == "constant" && isset($mutedConstants[$localConfigName])) {
                 $localConfig["value"] = $mutedConstants[$localConfigName];
-            }else if($localConfig["type"] == "variable" && isSet( $$localConfigName )){
+            } else if ($localConfig["type"] == "variable" && isSet( $$localConfigName )) {
                 $localConfig["value"] = $$localConfigName;
             }
             if(!isSet($localConfig["value"]) || empty($localConfig["value"])) continue;
             $l = "Should set ".$localConfig["target"]." to value ".$localConfig["value"]."\n";
-            if($dryRun){
+            if ($dryRun) {
                 $value = AJXP_Utils::xmlEntities($localConfig["value"]);
                 list($pluginId, $pluginOptionName) = explode("/", $localConfig["target"]);
                 $plug = AJXP_PluginsService::getInstance()->getPluginById($pluginId);
                 $options = $plug->getConfigs();
                 $options[$pluginOptionName] = $value;
                 print(nl2br($l));
-            } else{
+            } else {
                 list($pluginId, $pluginOptionName) = explode("/", $localConfig["target"]);
                 $confStorage = ConfService::getConfStorageImpl();
                 $value = AJXP_Utils::xmlEntities($localConfig["value"]);
-                if(!isSet($allOptions[$pluginId])){
+                if (!isSet($allOptions[$pluginId])) {
                     $plug = AJXP_PluginsService::getInstance()->getPluginById($pluginId);
                     $allOptions[$pluginId] = $plug->getConfigs();
-                }else{
+                } else {
                     $allOptions[$pluginId][$pluginOptionName] = $value;
                 }
                 fwrite($logFileHandle, $l);
             }
         }
-        if(!$dryRun && count($allOptions)){
-            foreach ($allOptions as $pId => $pOptions){
+        if (!$dryRun && count($allOptions)) {
+            foreach ($allOptions as $pId => $pOptions) {
                 $confStorage->savePluginConfig($pId, $pOptions);
             }
             @unlink(AJXP_PLUGINS_CACHE_FILE);
@@ -583,30 +685,30 @@ class AjaXplorerUpgrader {
             @unlink(AJXP_PLUGINS_MESSAGES_FILE);
         }
 
-        foreach($REPOSITORIES as $localRepoKey => $localRepoDef){
+        foreach ($REPOSITORIES as $localRepoKey => $localRepoDef) {
             $localRepoString = '$REPOSITORIES['.(is_numeric($localRepoKey)?$localRepoKey:'"'.$localRepoKey.'"').'] = '.str_replace(array("'", "\\\\"), array("\"","\\"), var_export($localRepoDef, true)).';';
             $l = "Will print this to bootstrap_repositories : \n". $localRepoString;
-            if($dryRun) {
+            if ($dryRun) {
                 print(nl2br($l));
-            }else{
+            } else {
                 file_put_contents($originalConfdir."/bootstrap_repositories.php", $localRepoString);
                 fwrite($logFileHandle, $l);
             }
         }
 
-        if(!$dryRun){
+        if (!$dryRun) {
             fclose($logFileHandle);
             print("<b>The operation is finished, all actions are logged in $logFile. Nothing was touch on your previous installation, please note that the repositories are not moved.<br>You should now logout, clear your browser cache, and refresh this page. Then you will log in with your previous users ids.</b>");
         }
 
     }
 
-    public static function migrateMetaSerialPlugin($repositoryId, $dryRun){
-
+    public static function migrateMetaSerialPlugin($repositoryId, $dryRun)
+    {
         $repo = ConfService::getRepositoryById($repositoryId);
         if($repo == null) throw new Exception("Cannot find repository!");
         $sources = $repo->getOption("META_SOURCES");
-        if(!isSet($sources["meta.serial"])) {
+        if (!isSet($sources["meta.serial"])) {
             //throw new Exception("This repository does not have the meta.serial plugin!");
             $sources["meta.serial"] = array(
                 "meta_file_name" => ".ajxp_meta",
@@ -614,7 +716,7 @@ class AjaXplorerUpgrader {
                 "meta_labels"   => "Comment,Label"
             );
         }
-        if($repo->hasParent()) {
+        if ($repo->hasParent()) {
             throw new Exception("This repository is defined by a template or is shared, you should upgrade the parent instead!");
         }
         $oldMetaFileName = $sources["meta.serial"]["meta_file_name"];
@@ -626,10 +728,10 @@ class AjaXplorerUpgrader {
             "meta_visibility" => $sources["meta.serial"]["meta_visibility"]
         );
         unset($sources["meta.serial"]);
-        $oldId = $repo->getUniqueId();
+        $oldId = $repo->getId();
         $repo->addOption("META_SOURCES", $sources);
         $log = print_r($sources, true);
-        if(!$dryRun){
+        if (!$dryRun) {
             ConfService::replaceRepository($oldId, $repo);
         }
         print("Will replace the META_SOURCES options with the following : <br><pre>".($log)."</pre>");
@@ -638,35 +740,25 @@ class AjaXplorerUpgrader {
 
     public static function copy_r( $path, $dest )
     {
-        if( is_dir($path) )
-        {
+        if ( is_dir($path) ) {
             @mkdir( $dest );
             $objects = scandir($path);
-            if( sizeof($objects) > 0 )
-            {
-                foreach( $objects as $file )
-                {
+            if ( sizeof($objects) > 0 ) {
+                foreach ($objects as $file) {
                     if( $file == "." || $file == ".." )
                         continue;
                     // go on
-                    if( is_dir( $path.DIRECTORY_SEPARATOR.$file ) )
-                    {
+                    if ( is_dir( $path.DIRECTORY_SEPARATOR.$file ) ) {
                         self::copy_r( $path.DIRECTORY_SEPARATOR.$file, $dest.DIRECTORY_SEPARATOR.$file );
-                    }
-                    else
-                    {
+                    } else {
                         copy( $path.DIRECTORY_SEPARATOR.$file, $dest.DIRECTORY_SEPARATOR.$file );
                     }
                 }
             }
             return true;
-        }
-        elseif( is_file($path) )
-        {
+        } elseif ( is_file($path) ) {
             return copy($path, $dest);
-        }
-        else
-        {
+        } else {
             return false;
         }
     }

@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  * Description : Various functions used statically very often.
  */
 function getBaseName(fileName)
@@ -225,20 +225,18 @@ function disableTextSelection(target)
 		$(target).addClassName("no_select_bg");
 	}
 	$(target).addClassName("no_select_bg");
-	if($(target).getElementsBySelector('input[type="text"]').length)
-	{
-		$(target).getElementsBySelector('input[type="text"]').each(function(element)
-		{
-			if (typeof element.onselectstart!="undefined")
-			{ //IE route				
-				element.onselectstart=function(){return true;};
-			}
-			else if (typeof element.style.MozUserSelect!="undefined")
-			{ //Firefox route
-				element.style.MozUserSelect=defaultValue;
-			}
-		});
-	}
+    $(target).select('input[type="text"]').each(function(element)
+    {
+        if (typeof element.onselectstart!="undefined")
+        { //IE route
+            element.onselectstart=function(){return true;};
+        }
+        else if (typeof element.style.MozUserSelect!="undefined")
+        { //Firefox route
+            element.style.MozUserSelect=defaultValue;
+        }
+    });
+    $(target).select(">div").each(function(d){disableTextSelection(d)});
 }
 
 function enableTextSelection(element){
@@ -253,12 +251,13 @@ function enableTextSelection(element){
 }
 
 function testStringWidth(text){
-	if(!$('string_tester')){
-		$$('body')[0].insert(new Element('div',{id:'string_tester'}));
-		$('string_tester').setStyle({fontFamily:'Trebuchet MS',fontSize:'11px',position:'absolute',visibility:'hidden',height:'auto',width:'auto',whiteSpace:'nowrap'});
-	}
-	$('string_tester').update(text);
-	return $('string_tester').getWidth() + (Prototype.Browser.IE?20:0);
+    var e = new Element('div',{id:'string_tester'});
+    $$('body')[0].insert(e);
+    e.setStyle({fontSize:'11px',position:'absolute',visibility:'hidden',height:'auto',width:'auto',whiteSpace:'nowrap'});
+	e.update(text);
+    var result = parseInt(e.getWidth()) + (Prototype.Browser.IE?20:0);
+    e.remove();
+	return result;
 }
 
 function fitRectangleToDimension(rectDim, targetDim){
@@ -302,6 +301,7 @@ function fitHeightToBottom(element, parentElement, addMarginBottom, listen)
 	if(typeof(addMarginBottom) == "undefined" || addMarginBottom == null){
 		addMarginBottom = 0;
 	}
+    if(parentElement == "window") parentElement = window;
 		
 	var observer = function(){	
 		if(!element) return;	
@@ -429,7 +429,16 @@ function XPathSelectSingleNode(element, query){
  */
 function XPathSelectNodes(element, query){
 	if(Prototype.Browser.IE){
-		return $A(element.selectNodes(query));
+        try{
+            if(element.ownerDocument){
+                element.ownerDocument.setProperty("SelectionLanguage", "XPath");
+            }else{
+                element.setProperty("SelectionLanguage", "XPath");
+            }
+        }catch(e){
+            if(console) console.log(e);
+        }
+        return $A(element.selectNodes(query));
 	}
 
     var xpe = window.__xpe;
@@ -505,6 +514,52 @@ function getDomNodeText(node){
 
 	return null;
 }
+
+function parseXml(xmlStr){
+
+    if(typeof window.ActiveXObject != "undefined" &&
+           new window.ActiveXObject("MSXML2.DOMDocument.6.0")){
+        var xmlDoc = new window.ActiveXObject("MSXML2.DOMDocument.6.0");
+        xmlDoc.validateOnParse = false;
+        xmlDoc.async = false;
+        xmlDoc.loadXML(xmlStr);
+        xmlDoc.setProperty('SelectionLanguage', 'XPath');
+        return xmlDoc;
+    }else if(typeof window.DOMParser != "undefined"){
+        return ( new window.DOMParser() ).parseFromString(xmlStr, "text/xml");
+    }
+}
+
+window.ajaxplorerSlugTable = [
+ {re:/[\xC0-\xC6]/g, ch:'A'},
+ {re:/[\xE0-\xE6]/g, ch:'a'},
+ {re:/[\xC8-\xCB]/g, ch:'E'},
+ {re:/[\xE8-\xEB]/g, ch:'e'},
+ {re:/[\xCC-\xCF]/g, ch:'I'},
+ {re:/[\xEC-\xEF]/g, ch:'i'},
+ {re:/[\xD2-\xD6]/g, ch:'O'},
+ {re:/[\xF2-\xF6]/g, ch:'o'},
+ {re:/[\xD9-\xDC]/g, ch:'U'},
+ {re:/[\xF9-\xFC]/g, ch:'u'},
+ {re:/[\xC7-\xE7]/g, ch:'c'},
+ {re:/[\xD1]/g, ch:'N'},
+ {re:/[\xF1]/g, ch:'n'} ];
+
+function slugString(value){
+// converti les caractères accentués en leurs équivalent alpha
+ for(var i=0, len=window.ajaxplorerSlugTable.length; i<len; i++)
+  value=value.replace(window.ajaxplorerSlugTable[i].re, window.ajaxplorerSlugTable[i].ch);
+
+  // 1) met en bas de casse
+  // 2) remplace les espace par des tirets
+  // 3) enleve tout les caratères non alphanumeriques
+  // 4) enlève les doubles tirets
+  return value.toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '')
+      .replace(/\-{2,}/g,'-');
+}
+
 
 function ajxpCorners(oElement, cornersString)
 {
@@ -709,9 +764,34 @@ function attachMobileScroll(targetId, direction){
 	}else{
 		var target = targetId;
 		targetId = target.id;
+        if(!target.id){
+            targetId = "scroll-pane-"+Math.floor(Math.random()*1000);
+            target.setAttribute('id', targetId);
+        }
 	}
 	if(!target) return;
 	target.addEventListener("touchmove", function(event){ scrollByTouch(event, direction, targetId); });
 	target.addEventListener("touchstart", function(event){ scrollByTouch(event, direction, targetId); });
 	target.addEventListener("touchend", function(event){ scrollByTouch(event, direction, targetId); });
+}
+
+function attachMobilTouchForClick(oElement, callback){
+
+    oElement.observe("touchstart", function(event){
+        var touchData = event.changedTouches[0];
+        oElement.selectableTouchStart = touchData["clientY"];
+    });
+    oElement.observe("touchend", function(event){
+        if(oElement.selectableTouchStart) {
+            var touchData = event.changedTouches[0];
+            var delta = touchData['clientY'] - oElement.selectableTouchStart;
+            if(Math.abs(delta) > 2){
+                return;
+            }
+        }
+        oElement.selectableTouchStart = null;
+        callback(event);
+    } );
+
+
 }

@@ -1,22 +1,22 @@
 <?php
 /*
-* Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
-* This file is part of AjaXplorer.
+* Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+* This file is part of Pydio.
 *
-* AjaXplorer is free software: you can redistribute it and/or modify
+* Pydio is free software: you can redistribute it and/or modify
 * it under the terms of the GNU Affero General Public License as published by
 * the Free Software Foundation, either version 3 of the License, or
 * (at your option) any later version.
 *
-* AjaXplorer is distributed in the hope that it will be useful,
+* Pydio is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU Affero General Public License for more details.
 *
 * You should have received a copy of the GNU Affero General Public License
-* along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+* along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
 *
-* The latest code can be found at <http://www.ajaxplorer.info/>.
+* The latest code can be found at <http://pyd.io/>.
 */
 //	spanish translation: Mikel Pascual Aldabaldetreku <mikel.paskual@gmail.com>, 2008
 //	spanish translation: Mikel Pascual Aldabaldetreku <mikel.paskual@gmail.com>, 2009
@@ -194,9 +194,9 @@ $mess=array(
 "164" => "Desconectar",
 "165" => "Configurar",
 "166" => "Acerca de",
-"167" => "Acerca de AjaXplorer",
-"168" => "Acceder a AjaXplorer",
-"169" => "Desconectar de AjaXplorer",
+"167" => "Acerca de...",
+"168" => "Acceder a Pydio",
+"169" => "Desconectar de Pydio",
 "170" => "Carpeta Actual",
 "parent_access_key" => "u",
 "refresh_access_key" => "z",
@@ -414,13 +414,13 @@ $mess=array(
 "361" => "Leer",
 "362" => "Escribir",
 "363" => "Elementos compartidos",
-"364" => "No tienes permisos para efectuar esta operació",
+"364" => "No tienes permisos para efectuar esta operación",
 "365" => "No estás autorizado a subir má de %s archivos de una vez.",
 "366" => "Este usuario no tiene ninguna carpeta activa.",
 "367" => "No estás autorizado a subir este tipo de archivos. Elige entre estas extensiones: ",
 "368" => "Se ha extraido lo seleccionado del archivo %s a la carpeta %s",
-"369" => "Enlace a AjaXplorer",
-"370" => "Descarga pública de AjaXplorer",
+"369" => "Enlace directo",
+"370" => "Descarga pública",
 "371" => "Se requiere una contraseña para descargar",
 "372" => "Repositorio Actual",
 "373" => "Destino",
@@ -439,19 +439,19 @@ $mess=array(
 "389" => "Lea el código que aparece a continuación:",
 "390" => "Código",
 "391" => "No hay depósito",
-"392" => "Aviso, la versión de AjaXplorer ha cambiado (ahora es %s), borre el caché del explorador y actualice la página para asegurarse de que todo funciona.",
+"392" => "Aviso, la versión de Pydio ha cambiado (ahora es %s), borre el caché del explorador y actualice la página para asegurarse de que todo funciona.",
 "393" => "Aviso, la longitud de los nombres debe ser inferior a %s, se truncará este nombre de archivo.",
 "394" => "Lo sentimos, no es posible compartir carpetas en este momento utilizando el controlador de autenticación actual (los usuarios no se pueden editar). No obstante, sigue siendo posible compartir archivos.",
 "395" => "El elemento que ha soltado parece una carpeta y las carpetas no se pueden cargar en el servidor. ¿Seguro que desea cargar?",
 "396" => "Método de autenticación",
-"397" => "Descargar particiones",
+"397" => "Descargar por partes",
 "398" => "Descargar archivos seleccionados por piezas",
 "399" => "Introduzca el número de piezas que desea descargar y, a continuación, haga clic en el botón y en cada uno de los archivos para descargarlos.",
 "400" => "Número de piezas:",
 "401" => "Puede descargar e instalar el software siguiente para unir las piezas cuando estén en su ordenador: ",
 "402" => "http://www.hjsplit.org/",
 "403" => "Preferencias de WebDAV",
-"404" => "Puede usar el protocolo WebDAV para montar sus repositorios de AjaXplorer como 'unidad en red' en varios clientes, incluyendo Windows, Mac, iPhone, etc.",
+"404" => "Puede usar el protocolo WebDAV para montar sus repositorios de Pydio como 'unidad en red' en varios clientes, incluyendo Windows, Mac, iPhone, etc.",
 "405" => "Use las siguientes URLs para acceder a sus repositorios usando su cuenta de usuario y contraseña. Advertencia, esto no funcionará a menos que defina esta característica como 'activa' e ingrese su contraseña.",
 "406" => "Activar compartir con WebDAV",
 "407" => "Ingrese su contraseña si es la primera vez que activa compartir con webDAV, o si quiere tipear una nueva contraseña:",
@@ -490,7 +490,86 @@ $mess=array(
 "439" => "Opciones Principales",
 "440" => "Si",
 "441" => "No",
-"442" => "Presentation",
+"442" => "Mi Cuenta",
+"443" => "Actualice su información personal",
+"444" => "Por favor actualice su contraseña, no podrá acceder hasta que lo haga.",
+"445" => "Ahora su sesión se cerrará, por favor inicie sesión de nuevo usando su nueva contraseña, gracias!",
+"446" => "Presentación",
+"447" => "Mi grupo",
+"448" => "crear usario",
+"449" => "Creando %s, elija una contraseña",
+"450" => "Ordenar por ...",
+"451" => "Ordenar miniaturas por ...",
+"452" => "Tamaño de miniaturas",
+"453" => "Elija tamaño de miniaturas",
+"454" => "Seleccione ficheros en su ordenador",
+"455" => "Mis Carpetas",
+"456" => "Más",
+"457" => "actualizar",
+"458" => "eliminar",
+"459" => "Carpeta principal",
+"460" => "Detalles",
+"461" => "Camviar a vista detallada",
+"detail_access_key" => "D",
+"date_relative_date" => "el DATE",
+"date_relative_time" => "TIME",
+"date_relative_date_format" => "Y/m/d",
+"date_relative_time_format" => "H:i",
+"date_relative_today" => "hoy a las TIME",
+"date_relative_yesterday" => "ayer a las TIME",
+"date_relative_tomorrow" => "mañana a las TIME",
+"date_relative_days_ago" => "hace %s días",
+"date_relative_days_ahead" => "en %s díass",
+"462" => "Previsualizar",
+"preview_access_key" => "e",
+"463" => "Descargar todo",
+"464" => "Descargar la carpeta completa en un solo archivo (zip)",
+"465" => "Mostrar URLs alternativas (montar carpetas por separado)",
+"466" => "Cargando...",
+"467" => "Todos los Elementos Compartidos",
+"468" => "Mis Carpetas",
+"469" => "Compartido conmigo",
+"470" => "Creado %date",
+"471" => "Creado por %user %date",
+"472" => "Compartido por %user",
+"473" => "Compartido por %user %date",
+"474" => "No hay descripción disponible",
+"475" => "Ficheros compartidos con todos los usuarios",
+"476" => "Su espacio de trabajo personal",
+"477" => "Select a file or folder to see its details here",
+"478" => "No results found",
+"479" => "Forgot your password?",
+"480" => "Browse all folders of the current workspace.",
+"481" => "All your shared files and folders",
+"482" => "Quick access to your bookmarked items",
+"483" => "You are not authorized to create more users!",
+"484" => "Create user",
+"485" => "Create a shared user",
+"486" => "Advanced",
+"487" => "Basic",
+"488" => "Advanced Filter",
+"489" => "Metadata",
+"490" => "Date range",
+"491" => "After",
+"492" => "until",
+"493" => "Today",
+"494" => "Yesterday",
+"495" => "Last week",
+"496" => "Last month",
+"497" => "Last year",
+"498" => "Document Property",
+"499" => "File",
+"500" => "extension",
+"501" => "or",
+"502" => "Folder",
+"503" => "Size",
+"504" => "1k,1M,1G",
+"505" => "to",
+"506" => "Application parameters (users, workspaces, configurations)",
+"507" => "Welcome on %s",
+"508" => "I just created an account for you on %s. To connect, please click on the following link %link and use these credentials:  <br><br> Login: %user <br><br> Password: %pass",
+"509" => "Save the current users list as a personal team",
+"510" => "Please enter a team label",
+"511" => "My %s",
 /* END SENTENCE */
 );
-?>

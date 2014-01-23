@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 
 /**
@@ -138,13 +138,17 @@ Class.create("ResourcesManager", {
         if(ajxpBootstrap.parameters.get('SERVER_PREFIX_URI')){
             fileName = ajxpBootstrap.parameters.get('SERVER_PREFIX_URI')+fileName;
         }
-		var cssNode = new Element('link', {
-			type : 'text/css',
-			rel  : 'stylesheet',
-			href : fileName+"?v="+window.ajxpBootstrap.parameters.get("ajxpVersion"),
-			media : 'screen'
-		});
-		head.insert(cssNode);
+        fileName = fileName+"?v="+window.ajxpBootstrap.parameters.get("ajxpVersion");
+        var select = head.down('[href="'+fileName+'"]');
+        if(!select){
+            var cssNode = new Element('link', {
+                type : 'text/css',
+                rel  : 'stylesheet',
+                href : fileName,
+                media : 'screen'
+            });
+            head.insert(cssNode);
+        }
 	},
 	/**
 	 * Insert the HTML snipper and evaluate scripts
@@ -162,6 +166,7 @@ Class.create("ResourcesManager", {
 	 * @param node XMLNode
 	 */
 	loadFromXmlNode : function(node){
+        var clForm = {};
 		if(node.nodeName == "resources"){
 			for(var k=0;k<node.childNodes.length;k++){
 				if(node.childNodes[k].nodeName == 'js'){
@@ -179,9 +184,13 @@ Class.create("ResourcesManager", {
 				}
 			}
 		}else if(node.nodeName == "clientForm"){
-			this.addGuiForm(node.getAttribute("id"), node.firstChild.nodeValue);
+            if(!node.getAttribute("theme") || node.getAttribute("theme") == ajxpBootstrap.parameters.get("theme")){
+                clForm = {formId:node.getAttribute("id"), formCode:node.firstChild.nodeValue};
+            }
 		}
-
+        if(clForm.formId){
+            this.addGuiForm(clForm.formId, clForm.formCode);
+        }
 	},
 	/**
 	 * Check if resources are tagged autoload and load them
@@ -198,5 +207,9 @@ Class.create("ResourcesManager", {
 		imgNodes.each(function(node){
 			addImageLibrary(node.getAttribute('alias'), node.getAttribute('path'));
 		}.bind(this));		
+		var cssNodes = XPathSelectNodes(registry, '//client_settings/resources/css[@autoload="true"]');
+		cssNodes.each(function(node){
+			this.loadCSSResource(node.getAttribute("file"));
+		}.bind(this));
 	}
 });

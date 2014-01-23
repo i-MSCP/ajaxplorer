@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 
 /**
@@ -139,8 +139,9 @@ Class.create("AjxpNode", {
 	addChild : function(ajxpNode){
 		ajxpNode.setParent(this);
 		if(this._iNodeProvider) ajxpNode._iNodeProvider = this._iNodeProvider;
-		if(existingNode = this.findChildByPath(ajxpNode.getPath())){
-			existingNode.replaceBy(ajxpNode);
+        var existingNode = this.findChildByPath(ajxpNode.getPath());
+		if(existingNode && !Object.isString(existingNode)){
+			existingNode.replaceBy(ajxpNode, "override");
 		}else{			
 			this._children.push(ajxpNode);
 			this.notify("child_added", ajxpNode.getPath());
@@ -153,6 +154,7 @@ Class.create("AjxpNode", {
 	removeChild : function(ajxpNode){
 		var removePath = ajxpNode.getPath();
 		ajxpNode.notify("node_removed");
+        ajxpNode._parentNode = null;
 		this._children = this._children.without(ajxpNode);
 		this.notify("child_removed", removePath);
 	},
@@ -160,8 +162,12 @@ Class.create("AjxpNode", {
 	 * Replaces the current node by a new one. Copy all properties deeply
 	 * @param ajxpNode AjxpNode
 	 */
-	replaceBy : function(ajxpNode){
+	replaceBy : function(ajxpNode, metaMerge){
 		this._isLeaf = ajxpNode._isLeaf;
+        if(ajxpNode.getPath() && this._path != ajxpNode.getPath()){
+            this._path = ajxpNode.getPath();
+            var pathChanged = true;
+        }
 		if(ajxpNode._label){
 			this._label = ajxpNode._label;
 		}
@@ -171,20 +177,31 @@ Class.create("AjxpNode", {
 		if(ajxpNode._iNodeProvider){
 			this._iNodeProvider = ajxpNode._iNodeProvider;
 		}
-		this._isRoot = ajxpNode._isRoot;
+		//this._isRoot = ajxpNode._isRoot;
 		this._isLoaded = ajxpNode._isLoaded;
 		this.fake = ajxpNode.fake;
-		ajxpNode.getChildren().each(function(child){
-			this.addChild(child);
-		}.bind(this) );		
-		var meta = ajxpNode.getMetadata();		
+		var meta = ajxpNode.getMetadata();
+        if(metaMerge == "override") this._metadata = $H();
 		meta.each(function(pair){
-			if(this._metadata.get(pair.key) && pair.value === ""){
-				return;
-			}
-			this._metadata.set(pair.key, pair.value);
+            if(metaMerge == "override"){
+                this._metadata.set(pair.key, pair.value);
+            }else{
+                if(this._metadata.get(pair.key) && pair.value === ""){
+                    return;
+                }
+                this._metadata.set(pair.key, pair.value);
+            }
 		}.bind(this) );
-		this.notify("node_replaced", this);		
+        if(pathChanged && !this._isLeaf && this.getChildren().length){
+            window.setTimeout(function(){
+                this.reload(this._iNodeProvider);
+            }.bind(this), 100);
+            return;
+        }
+        ajxpNode.getChildren().each(function(child){
+            this.addChild(child);
+        }.bind(this) );
+        this.notify("node_replaced", this);
 	},
 	/**
 	 * Finds a child node by its path
@@ -262,6 +279,32 @@ Class.create("AjxpNode", {
 		return false;
 	},	
 	/**
+	 * Search the mime type in the parent branch
+	 * @param ajxpMime String
+	 * @returns Boolean
+	 */
+	hasMetadataInBranch: function(metadataKey, metadataValue){
+		if(this.getMetadata().get(metadataKey)) {
+            if(metadataValue) {
+                return this.getMetadata().get(metadataKey) == metadataValue;
+            }else {
+                return true;
+            }
+        }
+		var parent, crt = this;
+		while(parent =crt._parentNode){
+			if(parent.getMetadata().get(metadataKey)){
+                if(metadataValue){
+                    return (parent.getMetadata().get(metadataKey) == metadataValue);
+                }else{
+                    return true;
+                }
+            }
+			crt = parent;
+		}
+		return false;
+	},
+	/**
 	 * Sets a reference to the parent node
 	 * @param parentNode AjxpNode
 	 */
@@ -289,9 +332,11 @@ Class.create("AjxpNode", {
 		for(var i=0;i<pathParts.length;i++){
 			if(pathParts[i] == "") continue;
 			crtPath = crtPath + "/" + pathParts[i];
-			if(node = crtParentNode.findChildByPath(crtPath)){
+            var node = crtParentNode.findChildByPath(crtPath);
+			if(node && !Object.isString(node)){
 				crtNode = node;
 			}else{
+                if(fakeNodes === undefined) return false;
 				crtNode = new AjxpNode(crtPath, false, getBaseName(crtPath));
 				crtNode.fake = true;				
 				fakeNodes.push(crtNode);

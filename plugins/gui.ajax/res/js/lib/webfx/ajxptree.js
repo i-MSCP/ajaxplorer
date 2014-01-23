@@ -1,6 +1,3 @@
-/**
-@todo : I18N THIS STRING
- */
 webFXTreeConfig.loadingText = "Loading...";
 
 function splitOverlayIcons(ajxpNode){
@@ -10,6 +7,11 @@ function splitOverlayIcons(ajxpNode){
         ret.push(resolveImageSource(el, "/images/overlays/ICON_SIZE", 8));
     });
     return ret;
+}
+
+function splitOverlayClasses(ajxpNode){
+    if(!ajxpNode.getMetadata().get("overlay_class")  || ! window.ajaxplorer.currentThemeUsesIconFonts) return false;
+    return ajxpNode.getMetadata().get("overlay_class").split(",");
 }
 
 function AJXPTree(rootNode, sAction, filter) {
@@ -38,8 +40,9 @@ function AJXPTree(rootNode, sAction, filter) {
 		this.filter = filter;
  	}
     this.overlayIcon = splitOverlayIcons(rootNode);
+    this.overlayClasses = splitOverlayClasses(rootNode);
 
-	this._loadingItem = new WebFXTreeItem(webFXTreeConfig.loadingText);		
+	this._loadingItem = new WebFXTreeItem(MessageHash?MessageHash[466]:webFXTreeConfig.loadingText);
 	if(this.open) this.ajxpNode.load();
 	else{
 		this.add(this._loadingItem);
@@ -87,10 +90,12 @@ AJXPTree.prototype.attachListeners = function(jsNode, ajxpNode){
 			if(!this.paginated){
 				this.paginated = true;
 				if(pData.get('dirsCount')!="0"){
-					this.updateLabel(this.text + " (" + MessageHash[pData.get('overflowMessage')]+ ")");
+                    var message = pData.get('overflowMessage');
+                    if(MessageHash[message]) message = MessageHash[message];
+					this.updateLabel(this.text + " (" + message+ ")");
 				}
 			}
-			return;
+			//return;
 		}else if(this.paginated){
 			this.paginated = false;
 			this.updateLabel(this.text);
@@ -113,13 +118,18 @@ AJXPTree.prototype.attachListeners = function(jsNode, ajxpNode){
 			}
 			jsNode.updateIcon(ic, oic);
             jsNode.overlayIcon = splitOverlayIcons(ajxpNode);
+            jsNode.overlayClasses = splitOverlayClasses(ajxpNode);
 		}
 		if(jsNode.updateLabel) jsNode.updateLabel(ajxpNode.getLabel());
 	}.bind(jsNode));
-	ajxpNode.observeOnce("node_removed", function(e){
-		jsNode.remove();
-	});
-	ajxpNode.observe("loading", function(){		
+    var remover = function(e){
+        jsNode.remove();
+        window.setTimeout(function(){
+            ajxpNode.stopObserving("node_removed", remover);
+        }, 200);
+    };
+	ajxpNode.observe("node_removed", remover);
+	ajxpNode.observe("loading", function(){
 		//this.add(this._loadingItem);
 	}.bind(jsNode) );
 	ajxpNode.observe("loaded", function(){
@@ -153,14 +163,15 @@ function AJXPTreeItem(ajxpNode, sAction, eParent) {
         eParent,
         icon,
         (openIcon?openIcon:resolveImageSource("folder_open.png", "/images/mimes/ICON_SIZE", 16)),
-        splitOverlayIcons(ajxpNode)
+        splitOverlayIcons(ajxpNode),
+        splitOverlayClasses(ajxpNode)
     );
 
 	this.loading = false;
 	this.loaded = false;
 	this.errorText = "";
 
-	this._loadingItem = new WebFXTreeItem(webFXTreeConfig.loadingText);
+	this._loadingItem = new WebFXTreeItem(MessageHash?MessageHash[466]:webFXTreeConfig.loadingText);
 	if (this.open) {
 		this.ajxpNode.load();
 	}else{
@@ -206,6 +217,7 @@ function _ajxpNodeToTree(ajxpNode, parentNode) {
 				newNode.filter = jsNode.filter;
 			}
             newNode.overlayIcon = splitOverlayIcons(child);
+            newNode.overlayClasses = splitOverlayClasses(child);
 			jsNode.add( newNode , false );
 		}
 	});	

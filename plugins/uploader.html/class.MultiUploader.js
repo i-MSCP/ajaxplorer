@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  * Credit:
  *   Original class by Stickman -- http://www.the-stickman.com
  *      with thanks to:
@@ -95,26 +95,32 @@ Class.create("MultiUploader", {
 		// FIX IE DISPLAY BUG
 		if(Prototype.Browser.IE){
 			$('fileInputContainerDiv').insert($('uploadBrowseButton'));
-			$('fileInputContainerDiv').insert($('uploadSendButton'));
+			//$('fileInputContainerDiv').insert($('uploadSendButton'));
 			$('uploadBrowseButton').show();
-			$('uploadSendButton').show();
+			//$('uploadSendButton').show();
 		}
         if(Prototype.Browser.IE){
             modal.closeValidation = function(){
                 $(document.body).insert($('uploadBrowseButton'));
-                $(document.body).insert($('uploadSendButton'));
+                //$(document.body).insert($('uploadSendButton'));
                 $('uploadBrowseButton').hide();
-                $('uploadSendButton').hide();
+                //$('uploadSendButton').hide();
                 return true;
             };
         }
 		// ATTACH LISTENERS ON BUTTONS (once only, that for the "observerSet")
-		var sendButton = formObject.down('div[id="uploadSendButton"]');
-		if(sendButton.observerSet) return;		
-		var optionsButton = formObject.down('div[id="uploadOptionsButton"]');
-		var closeButton = formObject.down('div[id="uploadCloseButton"]');
-		sendButton.observerSet = true;
-		sendButton.observe("click", function(){
+		this.sendButton = formObject.down('#uploadSendButton');
+		if(this.sendButton.observerSet) return;
+		var optionsButton = formObject.down('#uploadOptionsButton');
+		var closeButton = formObject.down('#uploadCloseButton');
+        if(formObject.down('#uploader_options_pane')){
+            formObject.down('#uploader_options_pane').hide();
+        }
+        if(formObject.down('#clear_list_button')){
+            formObject.down('#clear_list_button').hide();
+        }
+		this.sendButton.observerSet = true;
+		this.sendButton.observe("click", function(){
 			ajaxplorer.actionBar.multi_selector.submitMainForm();
 		});
 		optionsButton.observe("click", function(){
@@ -123,10 +129,12 @@ Class.create("MultiUploader", {
             message += '   '+ MessageHash[284] + ':' + this.max;
             alert(message);
 		}.bind(this));
-		closeButton.observe("click", function(){			
-			hideLightBox();
-		}.bind(this));
-		
+        if(closeButton){
+            closeButton.observe("click", function(){
+                hideLightBox();
+            }.bind(this));
+        }
+
 	},
 	
 	/**
@@ -260,8 +268,8 @@ Class.create("MultiUploader", {
 		new_row.appendChild(document.createTextNode(value));
 		// Add it to the list
 		this.list_target.appendChild( new_row );
-		
-	},
+        this.sendButton.removeClassName("disabled");
+    },
 	
 	getFileNames : function(){
 		
@@ -335,7 +343,7 @@ Class.create("MultiUploader", {
 		}
 		this.submitNext();		
 	},
-	
+
 	submitNext : function(error)
 	{
 		this.nextToUpload ++;
@@ -347,24 +355,25 @@ Class.create("MultiUploader", {
 		var nextToSubmit = $('pendingform_'+this.nextToUpload);
 		if(nextToSubmit)
 		{
-            document.fire("ajaxplorer:longtask_starting");
+
 			this.currentFileUploading = nextToSubmit.multi_index;
 			this.updateRowByIndex(this.currentFileUploading, 'loading');
 			var crtValue = $(nextToSubmit).getElementsBySelector('input[type="file"]')[0].value;
-			if(this.crtContext.fileNameExists(crtValue))
+            if(this.crtContext.fileNameExists(crtValue))
 			{
 				overwrite = confirm(MessageHash[124]);
 				if(!overwrite){
 					this.submitNext(true);
 					return;
 				}
-			}			
-			$(nextToSubmit).submit();
+			}
+            document.fire("ajaxplorer:longtask_starting");
+            $(nextToSubmit).submit();
 		}
 		else
 		{
             document.fire("ajaxplorer:longtask_finished");
-			ajaxplorer.fireContextRefresh();
+			//ajaxplorer.fireContextRefresh();
 		}
 		
 	}

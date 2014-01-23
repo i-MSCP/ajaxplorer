@@ -201,8 +201,8 @@ JS_BRAMUS.jsProgressBar = Class.create({
 	 * -------------------------------------------------------------
 	 */
 		setPercentage	: function(targetPercentage, clearQueue) {
-			
-			if(!this.visualsInitialized){
+
+        if(!this.visualsInitialized){
 				this.initialPerc = targetPercentage;
 				this.initVisuals();
 				return;
@@ -330,7 +330,7 @@ JS_BRAMUS.jsProgressBar = Class.create({
 			// Percentage not reached yet : continue processing entry
 			if (curPercentage != newPercentage) {
 				
-				this.timer = setTimeout(function() { this.processQueueEntry(targetPercentage); }.bind(this), 10);
+				this.timer = setTimeout(function() { this.processQueueEntry(targetPercentage); }.bind(this), 3);
 				
 			// Percentage reached!
 			} else {

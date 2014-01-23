@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<title>AjaXplorer</title>
+		<title>Pydio</title>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
 		<link rel="icon" type="image/x-png" href="AJXP_THEME_FOLDER/images/html-folder.png">
@@ -13,6 +13,7 @@
                 padding:20;
                 font-family: Helvetica, Verdana, Arial;
                 overflow: hidden;
+                background-image: url('plugins/gui.ajax/res/themes/vision/images/grid_t.png');
             }
             h1 {
                 font-size: 33px;
@@ -120,17 +121,17 @@
 	</head>
 	<body bgcolor="#FFFFFF" text="#000000" marginheight="0" marginwidth="0" leftmargin="0" topmargin="0"  style="">
 
-        <h1>AjaXplorer Diagnostic Tool</h1>
+        <h1>Pydio Diagnostic Tool</h1>
 
         <div class="mainContainer">
             <?php
                 if ($showSkipLink) {
                     if (count($ALL_ROWS["warning"]) && !count($ALL_ROWS["error"])) {
-                        echo "<p class='status statusWarning'><strong>Status</strong> : You have some warnings, but no fatal error detected, AjaXplorer should run ok. <br/>Please review the warnings, and <a href='index.php?ignore_tests=true'>click here to continue to AjaXplorer</a>.</p>";
+                        echo "<p class='status statusWarning'><strong>Status</strong> : You have some warnings, but no fatal error detected, Pydio should run ok. <br/>Please review the warnings, and <a href='index.php?ignore_tests=true'>click here to continue to Pydio</a>.</p>";
                     } else if(count($ALL_ROWS["error"])) {
-                        echo "<p class='status statusError'><strong>Status</strong> : <b>You have some errors</b> that may prevent AjaXplorer from running. Please review the error lines to check what action you should do. If you want to skip this step, simply <a href='index.php?ignore_tests=true'>click here to continue to Ajaxplorer</a>.</p>";
+                        echo "<p class='status statusError'><strong>Status</strong> : <b>You have some errors</b> that may prevent Pydio from running. Please review the error lines to check what action you should do. If you want to skip this step, simply <a href='index.php?ignore_tests=true'>click here to continue to Pydio</a>.</p>";
                     }else{
-                        echo "<p class='status'><strong>Status</strong> : <b>No specific errors</b> were detected, your AjaXplorer installation should run smoothly! <br/><a href='index.php?ignore_tests=true'>Click there to continue to Ajaxplorer</a></p>";
+                        echo "<p class='status'><strong>Status</strong> : <b>No specific errors</b> were detected, your Pydio installation should run smoothly! <br/><a href='index.php?ignore_tests=true'>Click there to continue to Pydio</a></p>";
                     }
                 }
             ?>
@@ -158,6 +159,21 @@
             </div>
 
             <script type="text/javascript">
+                var testRewrite = new Ajax.Request('data/cache/index.html', {
+                    method : 'get',
+                    onComplete : function(response){
+                        if(200 == response.status){
+                            var html = '<div class="testLine error">\
+                                <div class="testName"><span>-</span>Security Breach</div>\
+                                <div class="testStatus">error</div>\
+                                <div class="testDescription  visible">It seems that your <b>data/</b> folder is not correctly protected, and that subfolders (like the data/cache/ folder) are web-accessible. If you are using <b>Apache</b>, make sure the AllowOverride All option is active for your current directory. If you are running <b>Windows IIS</b>, you must manually add a RequestFiltering/HiddenSegments configuration to prevent web access to these folders. If you have defined a different AJXP_DATA_PATH pointing outside the webfolder, you can ignore this warning.</div>\
+                                <div class="testClear"></div>\
+                            </div>';
+                            $$('div.testList')[0].insert({top:html});
+                        }
+                    }
+                });
+
                 $$('div.testName').invoke("observe", "click", function(event){
                     var target = event.target;
                     if(target.tagName.toLowerCase() == "span") target = target.up("div.testName");
@@ -179,6 +195,6 @@
             </script>
         </div>
 
-        <!-- <h1 style="text-align: right">Continue to AjaXplorer &gt;&gt; </h1>-->
+        <!-- <h1 style="text-align: right">Continue to Pydio &gt;&gt; </h1>-->
     </body>
 </html>

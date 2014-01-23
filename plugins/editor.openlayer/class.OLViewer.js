@@ -1,39 +1,34 @@
-/*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+0/*
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 Class.create("OLViewer", AbstractEditor, {
 
-	initialize: function($super, oFormObject)
+	initialize: function($super, oFormObject, options)
 	{
-		$super(oFormObject);
-		this.actions.get("downloadFileButton").observe('click', function(){
-			if(!this.currentFile) return;		
-			ajaxplorer.triggerDownload(ajxpBootstrap.parameters.get('ajxpServerAccess')+'&action=download&file='+this.currentFile);
-			return false;
-		}.bind(this));
+		$super(oFormObject, options);
 		this.element.observe('editor:enterFS', function(){this.fullScreenMode = true;}.bind(this) );
 	},
 	
 	
-	open : function($super, userSelection){
-		$super(userSelection);
-		var ajxpNode = userSelection.getUniqueNode();
+	open : function($super, node){
+		$super(node);
+		var ajxpNode = node;
 		this.updateTitle(getBaseName(ajxpNode.getPath()));
 		this.mapDiv = new Element('div', {id:'openlayer_map', style:'width:100%'});
 		this.contentMainContainer = this.mapDiv;
@@ -56,7 +51,8 @@ Class.create("OLViewer", AbstractEditor, {
 	resize : function ($super, size){
 		$super(size);
 		if(!this.fullScreenMode){
-			fitHeightToBottom($(this.mapDiv), $(modal.elementName));
+			fitHeightToBottom($(this.element));
+			fitHeightToBottom($(this.mapDiv), $(this.editorOptions.context.elementName));
 		}
 		if(this.olMap){
 			this.olMap.updateSize();

@@ -1,26 +1,26 @@
 <?php
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 $mess=array(
 "1" => "Shared Users",
-"2" => "Shared Repositories",
+"2" => "Shared Workspaces",
 "3" => "Public files",
 "4"	=> "File Path",
 "5"	=> "Repository",
@@ -28,7 +28,7 @@ $mess=array(
 "7"	=> "Expiration",
 "8" => "Elements",
 "9" => "Associated users",
-"10"=> "Associated repositories",
+"10"=> "Associated workspaces",
 "11"=> "Are you sure that you want to delete the selected element(s)?",
 "12"=> "You don't have the permission to delete this element.",
 "13"=> "Successfully deleted public file.",
@@ -47,10 +47,9 @@ $mess=array(
 "26"=> "Delete expired shared files.",
 "27"=> "Owner",
 "28"=> "Files shared for direct download, either protected by a password or not.",
-"29"=> "Delegates repositories created by users.",
-"30"=> "Users created to access the delegated repositories.",
+"29"=> "Delegates workspaces created by users.",
+"30"=> "Users created to access the delegated workspaces.",
 "31"=> "Description",
 "32"=> "Reset",
 "33"=> "Reset download counter",
-); 
-?>
+);

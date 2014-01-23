@@ -1,29 +1,84 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 Class.create("VideoPreviewer", AbstractEditor, {
 
 	fullscreenMode: false,
 	
-	initialize: function($super, oFormObject){
-	},
-		
+	initialize: function($super, oFormObject, options){
+        this.editorOptions = options;
+        this.element = oFormObject;
+    },
+
+    open : function($super, ajxpNode){
+        this.currentRichPreview = this.getPreview(ajxpNode, true);
+        if(this.element.id == "videojs_previewer"){
+            fitHeightToBottom(this.element);
+            this.element.insert(this.currentRichPreview);
+        }else{
+            this.element.down("#videojs_previewer").setStyle({height:'297px'});
+            this.element.down("#videojs_previewer").insert(this.currentRichPreview);
+            this.currentRichPreview.resizePreviewElement({width:380, height:260, maxHeight:260}, true);
+        }
+        modal.setCloseValidation(function(){
+            this.currentRichPreview.destroyElement();
+            return true;
+        }.bind(this));
+        this.element.fire("editor:updateTitle", ajxpNode.getLabel());
+    },
+
+    resize: function($super, size){
+
+        $super(size);
+        fitHeightToBottom(this.element);
+        try{
+            this.currentRichPreview.resizePreviewElement({
+                width:this.element.getWidth(),
+                height:this.element.getHeight(),
+                maxHeight:this.element.getHeight()
+            }, true);
+        }catch(e){}
+
+    },
+
+    destroy: function(){
+
+        this.currentRichPreview.destroyElement();
+
+    },
+
+    getSharedPreviewTemplate : function(node){
+
+        var mime = getAjxpMimeType(node);
+        var cType;
+        if(mime == "mp4" || mime == "m4v") cType = "video/mp4";
+        else if(mime == "ogv") cType = "video/ogg";
+        else if(mime == "webm") cType = "video/webm";
+        return new Template('<link href="http://vjs.zencdn.net/c/video-js.css" rel="stylesheet">\n\
+&lt;script src="http://vjs.zencdn.net/c/video.js"&gt;&lt;/script&gt;\n\
+<video id="my_video_1" class="video-js vjs-default-skin" controls\n\
+preload="auto" width="#{WIDTH}" height="#{HEIGHT}" data-setup="{}">\n\
+<source src="#{DL_CT_LINK}" type="'+cType+'">\n\
+</video>');
+
+    },
+
 	getPreview : function(ajxpNode, rich){
 		if(rich){
 			var url = document.location.href;
@@ -75,9 +130,9 @@ Class.create("VideoPreviewer", AbstractEditor, {
 				content +='	<video class="video-js" controls preload="auto" height="200">';
                 var flashName;
                 html5proxies.each(function(pair){
-                    var fname = url+'/'+ajxpBootstrap.parameters.get('ajxpServerAccess')+'&action=read_video_data'+sessidPart+'&file='+pair.value;
+                    var fname = url+'/'+ajxpBootstrap.parameters.get('ajxpServerAccess')+'&action=read_video_data'+sessidPart+'&file='+encodeURIComponent(pair.value);
                     if(!flashName){
-                        flashName = encodeURIComponent(fname);
+                        flashName = encodeURIComponent(url+'/'+ajxpBootstrap.parameters.get('ajxpServerAccess')+'&action=read_video_data'+sessidPart+'&file='+pair.value);
                     }
                     content +='		<source src="'+fname+'" type=\''+types[pair.key]+'\' />';
                 });
@@ -92,7 +147,7 @@ Class.create("VideoPreviewer", AbstractEditor, {
 				content += '<p align="center"> <img src="'+poster+'" width="64" height="64"></p>';
 				
 				div.update(content);
-				div.resizePreviewElement = function(dimensionObject){
+				div.resizePreviewElement = function(dimensionObject, innerInstance){
 					var videoObject = div.down('.video-js');
 					if(!div.ajxpPlayer && div.parentNode && videoObject){						
 						$(div.parentNode).setStyle({paddingLeft:10,paddingRight:10});
@@ -106,11 +161,32 @@ Class.create("VideoPreviewer", AbstractEditor, {
 							playerFallbackOrder : (mime == "mp4" || mime=="m4v"?["html5", "flash", "links"]:["html5", "links"])
 						});
 					}
-					div.setStyle({width:dimensionObject.width});
-					div.down('.vjs-flash-fallback').setAttribute('width', dimensionObject.width);
-					if(videoObject) videoObject.setAttribute('width', dimensionObject.width);
-					if(div.ajxpPlayer) div.ajxpPlayer.triggerResizeListeners();
-				}
+                    var height = Math.min(dimensionObject.height, dimensionObject.maxHeight);
+                    var width = dimensionObject.width;
+                    var styleObject = {height: height + 'px', width : width + 'px'};
+					div.setStyle(styleObject);
+					div.down('.vjs-flash-fallback').setAttribute('width', width);
+                    if(innerInstance) div.down('.vjs-flash-fallback').setAttribute('height', height);
+					if(videoObject) {
+                        videoObject.setAttribute('width', width);
+                        if(innerInstance) videoObject.setAttribute('height', height);
+                        videoObject.setStyle(styleObject);
+                    }
+                    if(div.ajxpPlayer) {
+                        div.ajxpPlayer.height(height);
+                        div.ajxpPlayer.width(width);
+                    }
+				};
+                div.destroyElement = function(){
+                    if(div.ajxpPlayer){
+                        div.ajxpPlayer.pause();
+                        try{
+                            $A(div.children).invoke("remove");
+                            div.down("video").destroy();
+                        }catch(e){}
+                        div.update('');
+                    }
+                };
 				
 			}else{
                 var f = encodeURIComponent(url+'/'+ajxpBootstrap.parameters.get('ajxpServerAccess')+'&action=read_video_data&file='+ajxpNode.getPath());
@@ -124,7 +200,10 @@ Class.create("VideoPreviewer", AbstractEditor, {
 				div.update(content);
 				div.resizePreviewElement = function(dimensionObject){
 					// do nothing;
-				}
+				};
+                div.destroyElement = function(){
+                    div.update('');
+                };
 			}
 			return div;
 		}else{

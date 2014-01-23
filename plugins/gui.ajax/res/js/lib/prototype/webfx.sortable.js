@@ -74,11 +74,13 @@ SortableTable = Class.create({
 			this.headerOnclick(e);
 		}.bind(this);
 	
-		if (oTable) {
+		if (oTable && oTable.nodeName.toLowerCase() == 'table') {
 			this.setTable( oTable, oTHead );
 			this.document = oTable.ownerDocument || oTable.document;
-		}
-		else {
+		} else if( oTable ){
+            this.container = oTable;
+            this.document = document;
+        } else {
 			this.document = document;
 		}
 	
@@ -98,6 +100,14 @@ SortableTable = Class.create({
 		this.addSortType("String");
 		
 	},
+
+    setMetaSortType : function(columnsDefs){
+        this.columnsDefs = columnsDefs;
+        this.sortTypes = [];
+        this.columnsDefs.each(function(a){
+            this.sortTypes.push("NodeMeta");
+        }.bind(this));
+    },
 	
 	onsort: function () {},
 	
@@ -136,13 +146,16 @@ SortableTable = Class.create({
 	},
 	
 	getHeaderCells : function(){
-		if(!this.headerCells){
+		if(!this.headerCells && this.tHead){
 			this.headerCells = this.tHead.select('div.header_cell');
 			this.headerCells.each(function(cell){
 				var prev = cell.previous('div');
 				if( prev && prev.hasClassName('resizer')){
 					cell.resizer = prev;
 				}
+                if(!cell.down('span.ajxp-order-icon')){
+                    cell.down('div.header_label').insert('<span class="ajxp-order-icon icon-caret-up"></span><span class="ajxp-order-icon icon-caret-down"></span>');
+                }
 			});
 		}
 		return this.headerCells;
@@ -226,6 +239,7 @@ SortableTable = Class.create({
 		}catch(e){
 			return;
 		}
+        if(!cells || !cells.length) return;
 		var l = cells.length;
 		var c;
 		for (var i = 0; i < l; i++) {
@@ -280,6 +294,9 @@ SortableTable = Class.create({
 	},
 	
 	getSortType: function (nColumn) {
+        if(this.columnsDefs && this.columnsDefs[nColumn] && this.columnsDefs[nColumn]["sortType"]){
+            return this.columnsDefs[nColumn]["sortType"];
+        }
 		return this.sortTypes[nColumn] || "String";
 	},
 	
@@ -288,7 +305,7 @@ SortableTable = Class.create({
 	// if sSortType is left out the sort type is found from the sortTypes array
 	
 	sort: function (nColumn, bDescending, sSortType) {
-		if (!this.tBody) return;
+		if (!this.tBody && !this.container) return;
 		if (sSortType == null)
 			sSortType = this.getSortType(nColumn);
 	
@@ -312,7 +329,7 @@ SortableTable = Class.create({
 	
 		var f = this.getSortFunction(sSortType, nColumn);
 		var a = this.getCache(sSortType, nColumn);
-		var tBody = this.tBody;
+		var tBody = this.tBody ? this.tBody : this.container;
 	
 		a.sort(f);
 	
@@ -354,8 +371,15 @@ SortableTable = Class.create({
 	},
 	
 	getCache: function (sType, nColumn) {
-		if (!this.tBody) return [];
-		var rows = this.tBody.rows;
+		if (!this.tBody && !this.container) return [];
+        var rows;
+        if(this.tBody){
+            rows = this.tBody.rows;
+        }else if(this.container){
+            rows = this.container.select(".ajxpNodeProvider");
+        }else{
+            return [];
+        }
 		var l = rows.length;
 		var a = new Array(l);
 		var r;
@@ -365,7 +389,7 @@ SortableTable = Class.create({
 				value:		this.getRowValue(r, sType, nColumn),
 				element:	r
 			};
-		};
+		}
 		return a;
 	},
 	
@@ -379,13 +403,31 @@ SortableTable = Class.create({
 	},
 	
 	getRowValue: function (oRow, sType, nColumn) {
+        if(!this._sortTypeInfo[sType]) return 0;
 		// if we have defined a custom getRowValue use that
-		if (this._sortTypeInfo[sType] && this._sortTypeInfo[sType].getRowValue)
-			return this._sortTypeInfo[sType].getRowValue(oRow, nColumn);
-	
+        if(this.columnsDefs){
+            var colDef = this.columnsDefs[nColumn];
+            var attName = colDef['attributeName'];
+            var stringValue;
+            if(this._sortTypeInfo[sType].getNodeValue){
+                stringValue = this._sortTypeInfo[sType].getNodeValue(oRow.ajxpNode, attName);
+            }else {
+                if(this._sortTypeInfo[sType].getRowValue){
+                    stringValue = this._sortTypeInfo[sType].getRowValue(oRow, nColumn, attName);
+                }
+                if(stringValue === undefined) {
+                    stringValue = oRow.ajxpNode.getMetadata().get(attName);
+                }
+            }
+            return this.getValueFromString(stringValue);
+        }
+        if (this._sortTypeInfo[sType] && this._sortTypeInfo[sType].getRowValue){
+            return this._sortTypeInfo[sType].getRowValue(oRow, nColumn);
+        }
+
 		var s;
 		var c = oRow.cells[nColumn];
-		if (typeof c.innerText != "undefined")
+		if (c && typeof c.innerText != "undefined")
 			s = c.innerText;
 		else
 			s = this.getInnerText(c);
@@ -468,12 +510,13 @@ SortableTable = Class.create({
 	//    If left out then the innerText is first taken for the cell and then the
 	//    fGetValueFromString is used to convert that string the desired value and type
 	
-	addSortType: function (sType, fGetValueFromString, fCompareFunction, fGetRowValue) {
+	addSortType: function (sType, fGetValueFromString, fCompareFunction, fGetRowValue, fGetNodeValue) {
 		this._sortTypeInfo[sType] = {
 			type:				sType,
 			getValueFromString:	fGetValueFromString || this.idFunction,
 			compare:			fCompareFunction || this.basicCompare,
-			getRowValue:		fGetRowValue
+			getRowValue:		fGetRowValue,
+            getNodeValue:       fGetNodeValue || null
 		};
 	},
 	

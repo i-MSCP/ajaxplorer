@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 
 /**
@@ -55,13 +55,22 @@ Class.create("AjxpDataModel", {
 	setAjxpNodeProvider : function(iAjxpNodeProvider){
 		this._iAjxpNodeProvider = iAjxpNodeProvider;
 	},
-	
+
+    /**
+     * Return the current data source provider
+     * @return IAjxpNodeProvider
+     */
+	getAjxpNodeProvider : function(){
+		return this._iAjxpNodeProvider;
+	},
+
 	/**
 	 * Changes the current context node.
 	 * @param ajxpNode AjxpNode Target node, either an existing one or a fake one containing the target part.
 	 * @param forceReload Boolean If set to true, the node will be reloaded even if already loaded.
 	 */
 	requireContextChange : function(ajxpNode, forceReload){
+        if(ajxpNode == null) return;
 		var path = ajxpNode.getPath();
 		if((path == "" || path == "/") && ajxpNode != this._rootNode){
 			ajxpNode = this._rootNode;
@@ -96,6 +105,27 @@ Class.create("AjxpDataModel", {
 		ajxpNode.observeOnce("loaded", function(){
 			this.setContextNode(ajxpNode, true);			
 			this.publish("context_loaded");
+            if(this.getPendingSelection()){
+                var selPath = ajxpNode.getPath() + (ajxpNode.getPath() == "/" ? "" : "/" ) +this.getPendingSelection();
+                var selNode =  ajxpNode.findChildByPath(selPath);
+                if(selNode) {
+                    this.setSelectedNodes([selNode], this);
+                }else{
+                    if(ajxpNode.getMetadata().get("paginationData") && arguments.length < 3){
+                        var newPage;
+                        var currentPage = ajxpNode.getMetadata().get("paginationData").get("current");
+                        this.loadPathInfoSync(selPath, function(foundNode){
+                            newPage = foundNode.getMetadata().get("page_position");
+                        });
+                        if(newPage && newPage != currentPage){
+                            ajxpNode.getMetadata().get("paginationData").set("new_page", newPage);
+                            this.requireContextChange(ajxpNode, true, true);
+                            return;
+                        }
+                    }
+                }
+                this.clearPendingSelection();
+            }
 		}.bind(this));
 		ajxpNode.observeOnce("error", function(message){
 			ajaxplorer.displayMessage("ERROR", message);
@@ -115,7 +145,39 @@ Class.create("AjxpDataModel", {
 			this.publish("context_loaded");
 		}
 	},
-	
+
+    requireNodeReload: function(nodeOrPath){
+        if(Object.isString(nodeOrPath)){
+            nodeOrPath = new AjxpNode(nodeOrPath);
+        }
+        var onComplete = null;
+        if(this._selectedNodes.length) {
+            var found = false;
+            this._selectedNodes.each(function(node){
+                if(node.getPath() == nodeOrPath.getPath()) found = node;
+            });
+            if(found){
+                // TODO : MAKE SURE SELECTION IS OK AFTER RELOAD
+                this._selectedNodes = this._selectedNodes.without(found);
+                this.publish("selection_changed", this);
+                onComplete = function(newNode){
+                    this._selectedNodes.push(newNode);
+                    this._selectionSource = {};
+                    this.publish("selection_changed", this);
+                }.bind(this);
+            }
+        }
+        this._iAjxpNodeProvider.refreshNodeAndReplace(nodeOrPath, onComplete);
+    },
+
+    loadPathInfoSync: function (path, callback){
+        this._iAjxpNodeProvider.loadLeafNodeSync(new AjxpNode(path), callback);
+    },
+
+    loadPathInfoAsync: function (path, callback){
+        this._iAjxpNodeProvider.loadLeafNodeSync(new AjxpNode(path), callback, true);
+    },
+
 	/**
 	 * Sets the root of the data store
 	 * @param ajxpRootNode AjxpNode The parent node
@@ -134,7 +196,7 @@ Class.create("AjxpDataModel", {
 	 * Gets the current root node
 	 * @returns AjxpNode
 	 */
-	getRootNode : function(ajxpRootNode){
+	getRootNode : function(){
 		return this._rootNode;
 	},
 	
@@ -147,10 +209,20 @@ Class.create("AjxpDataModel", {
 		if(this._contextNode && this._contextNode == ajxpDataNode && this._currentRep  == ajxpDataNode.getPath() && !forceEvent){
 			return; // No changes
 		}
-		this._contextNode = ajxpDataNode;
+        if(!ajxpDataNode) return;
+        if(this._contextNodeReplacedObserver && this._contextNode){
+            this._contextNode.stopObserving("node_replaced", this._contextNodeReplacedObserver);
+        }
+        this._contextNode = ajxpDataNode;
 		this._currentRep = ajxpDataNode.getPath();
         this.publish("context_changed", ajxpDataNode);
+        if(!this._contextNodeReplacedObserver) this._contextNodeReplacedObserver = this.contextNodeReplaced.bind(this);
+        ajxpDataNode.observe("node_replaced", this._contextNodeReplacedObserver);
 	},
+
+    contextNodeReplaced: function(newNode){
+        this.setContextNode(newNode);
+    },
 
     /**
      *
@@ -284,6 +356,7 @@ Class.create("AjxpDataModel", {
 		}else{
 			this._selectionSource = source;
 		}
+        //ajxpDataNodes = $A(ajxpDataNodes).without(this._rootNode);
 		this._selectedNodes = $A(ajxpDataNodes);
 		this._bEmpty = ((ajxpDataNodes && ajxpDataNodes.length)?false:true);
 		this._bFile = this._bDir = this._isRecycle = false;
@@ -316,7 +389,15 @@ Class.create("AjxpDataModel", {
 	getSelectionSource : function(){
 		return this._selectionSource;
 	},
-	
+
+    /**
+     * Manually sets the source of the selection
+     * @param object
+     */
+    setSelectionSource : function(object){
+        this._selectionSource = object;
+    },
+
 	/**
 	 * DEPRECATED
 	 */
@@ -338,7 +419,25 @@ Class.create("AjxpDataModel", {
 	isEmpty : function (){
 		return (this._selectedNodes?(this._selectedNodes.length==0):true);
 	},
-	
+
+    hasReadOnly : function(){
+        var test = false;
+        this._selectedNodes.each(function(node){
+            if(node.hasMetadataInBranch("ajxp_readonly", "true")) {
+                test = true;
+                throw $break;
+            }
+        });
+        return test;
+    },
+
+    selectionHasRootNode : function(){
+        return (null != this._selectedNodes.detect(function(el){
+            return el.isRoot();
+        }));
+
+    },
+
 	/**
 	 * Whether the selection is unique
 	 * @returns Boolean
@@ -457,22 +556,44 @@ Class.create("AjxpDataModel", {
 	 * @param newFileName String The name to check
 	 * @returns Boolean
 	 */
-	fileNameExists: function(newFileName) 
-	{	
-		var allItems = this._contextNode.getChildren();
-		if(!allItems.length)
-		{		
-			return false;
-		}
-		for(i=0;i<allItems.length;i++)
-		{
-			var meta = allItems[i].getMetadata();
-			var crtFileName = getBaseName(meta.get('filename'));
-			if(crtFileName && crtFileName.toLowerCase() == getBaseName(newFileName).toLowerCase()) 
-				return true;
-		}
-		return false;
-	},	
+	fileNameExists: function(newFileName, local, contextNode)
+	{
+        if(!contextNode){
+            contextNode = this._contextNode;
+        }
+        if(local){
+            var test = (contextNode.getPath()=="/"?"":contextNode.getPath()) + "/" + newFileName;
+            return contextNode.getChildren().detect(function(c){
+                return c.getPath() == test;
+            });
+        }else{
+            var nodeExists = false;
+            this.loadPathInfoSync(contextNode.getPath() + "/" + newFileName, function(foundNode){
+                nodeExists = true;
+            });
+            return nodeExists;
+        }
+
+	},
+
+    applyCheckHook : function(node){
+        "use strict";
+        var conn = new Connexion();
+        conn.setParameters(new Hash({
+            get_action : "apply_check_hook",
+            file       : node.getPath(),
+            hook_name  : "before_create",
+            hook_arg   : node.getMetadata().get("filesize") || -1
+        }));
+        var result;
+        conn.onComplete = function(transport){
+            result = ajaxplorer.actionBar.parseXmlMessage(transport.responseXML);
+        };
+        conn.sendSync();
+        if(result === false){
+            throw new Error("Check failed" + error);
+        }
+    },
 	
 	/**
 	 * Gets the first name of the current selection
@@ -528,41 +649,30 @@ Class.create("AjxpDataModel", {
 		// CLEAR FROM PREVIOUS ACTIONS!
 		if(oFormElement)	
 		{
-			$(oFormElement).getElementsBySelector("input").each(function(element){
-				if(element.name.indexOf("file_") != -1 || element.name=="file") element.value = "";
+			$(oFormElement).select('input[type="hidden"]').each(function(element){
+				if(element.name == "nodes[]" || element.name == "file")element.remove();
 			});
 		}
 		// UPDATE THE 'DIR' FIELDS
-		if(oFormElement && oFormElement.rep) oFormElement.rep.value = this._currentRep;
+		if(oFormElement && oFormElement['rep']) oFormElement['rep'].value = this._currentRep;
 		sUrl += '&dir='+encodeURIComponent(this._currentRep);
 		
 		// UPDATE THE 'file' FIELDS
 		if(this.isEmpty()) return sUrl;
 		var fileNames = this.getFileNames();
-		if(this.isUnique())
-		{
-			sUrl += '&'+'file='+encodeURIComponent(fileNames[0]);
-			if(oFormElement) this._addHiddenField(oFormElement, 'file', fileNames[0]);
-		}
-		else
-		{
-			for(var i=0;i<fileNames.length;i++)
-			{
-				sUrl += '&'+'file_'+i+'='+encodeURIComponent(fileNames[i]);
-				if(oFormElement) this._addHiddenField(oFormElement, 'file_'+i, fileNames[i]);
-			}
-		}
+        for(var i=0;i<fileNames.length;i++)
+        {
+            sUrl += '&'+'nodes[]='+encodeURIComponent(fileNames[i]);
+            if(oFormElement) this._addHiddenField(oFormElement, 'nodes[]', fileNames[i]);
+        }
+        if(fileNames.length == 1){
+            sUrl += '&'+'file='+encodeURIComponent(fileNames[0]);
+            if(oFormElement) this._addHiddenField(oFormElement, 'file', fileNames[0]);
+        }
 		return sUrl;
 	},
 	
 	_addHiddenField : function(oFormElement, sFieldName, sFieldValue){
-		if(oFormElement[sFieldName]) oFormElement[sFieldName].value = sFieldValue;
-		else{
-			var field = document.createElement('input');
-			field.type = 'hidden';
-			field.name = sFieldName;
-			field.value = sFieldValue;
-			oFormElement.appendChild(field);
-		}
+        oFormElement.insert(new Element('input', {type:'hidden', name:sFieldName, value:sFieldValue}));
 	}
 });

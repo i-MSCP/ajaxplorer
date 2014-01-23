@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 
 /**
@@ -35,14 +35,21 @@ Class.create("Modal", {
 	 */
 	initialize: function(){
 	},
+
+    /**
+     * CurrentLightBox
+     */
+    currentLightBoxElement : null,
+    currentLightBoxModal : null,
+
 	/**
 	 * Find the forms
 	 */
 	initForms: function(){
 		this.elementName = 'generic_dialog_box';
 		this.htmlElement = $(this.elementName);
-		this.dialogTitle = this.htmlElement.select(".dialogTitle")[0];
-		this.dialogContent = this.htmlElement.select(".dialogContent")[0];
+		this.dialogTitle = this.htmlElement.down(".dialogTitle");
+		this.dialogContent = this.htmlElement.down(".dialogContent");
 		this.currentForm;
 		this.cachedForms = new Hash();
 		this.iframeIndex = 0;	
@@ -53,13 +60,34 @@ Class.create("Modal", {
 	 * @param sTitle String Title of the popup
 	 * @param sIconSrc String Source icon
 	 */
-	prepareHeader: function(sTitle, sIconSrc){
+	prepareHeader: function(sTitle, sIconSrc, sIconClass){
 		var hString = "<span class=\"titleString\">";
 		if(sIconSrc != "") hString = "<span class=\"titleString\"><img src=\""+sIconSrc.replace('22', '16')+"\" width=\"16\" height=\"16\" align=\"top\"/>&nbsp;";
-		var closeBtn = '<img id="modalCloseBtn" style="cursor:pointer;float:right;margin-top:2px;" src="'+ajxpResourcesFolder+'/images/actions/16/window_close.png" />';  
-		hString += sTitle + '</span>';
+        var closeBtn;
+        if(window.ajaxplorer.currentThemeUsesIconFonts){
+            if(sIconClass){
+                hString = "<span class=\"titleString\"><span class='"+sIconClass+" ajxp_icon_span'></span>";
+            }
+            closeBtn = '<span id="modalCloseBtn" class="icon-remove-sign" style="cursor:pointer;float:right;"></span>';
+        }else{
+            closeBtn = '<img id="modalCloseBtn" style="cursor:pointer;float:right;margin-top:2px;" src="'+ajxpResourcesFolder+'/images/actions/16/window_close.png" />';
+        }
+
+        hString += '<span class="string-only-title">' + sTitle + '</span></span>';
 		this.dialogTitle.update(closeBtn + hString);
 	},
+
+    /**
+     * Implement IEditorParentContext
+     * @param title
+     * @param iconClass
+     * @param iconImg
+     */
+    setContextTitle : function(title, iconClass, iconImg){
+        if(title){
+            this.dialogTitle.down(".string-only-title").update(title);
+        }
+    },
 	
 	/**
 	 * Shows a dialog box by getting the form from the hidden_forms
@@ -71,9 +99,9 @@ Class.create("Modal", {
 	 * @param bOkButtonOnly Boolean Wether to hide cancel button
 	 * @param skipButtons Boolean Wether to hide all buttons
 	 */
-	showDialogForm: function(sTitle, sFormId, fOnLoad, fOnComplete, fOnCancel, bOkButtonOnly, skipButtons){
+	showDialogForm: function(sTitle, sFormId, fOnLoad, fOnComplete, fOnCancel, bOkButtonOnly, skipButtons, useNextButtons){
 		this.clearContent(this.dialogContent);
-		//this.dialogTitle.innerHTML = sTitle;
+		this.htmlElement.className = 'dialogBox form-'+sFormId;
 		var newForm;
 		if($(sFormId).tagName == 'FORM') // WE PASSED A PREFETCHED HIDDEN FORM
 		{
@@ -84,11 +112,12 @@ Class.create("Modal", {
 		{
 			var formDiv = $(sFormId);
 			//var formDiv = $('all_forms').select('[id="'+sFormId+'"]')[0];	
-			var newForm = document.createElement('form');
-			newForm.id = 'modal_action_form';
-			newForm.setAttribute('name','modal_action_form');
-			newForm.setAttribute('action', 'cont.php');
-			newForm.appendChild(formDiv.cloneNode(true));
+			newForm = new Element('form', {
+                name:'modal_action_form',
+                id:'modal_action_form',
+                autocomplete:'off'
+            });
+			newForm.insert(formDiv.cloneNode(true));
 			var reloadIFrame = null;
 			if($(newForm).getElementsByTagName("iframe")[0])
 			{
@@ -105,21 +134,22 @@ Class.create("Modal", {
 			}		
 		}
 		if(!this.cachedForms.get(sFormId) && !skipButtons){
-			this.addSubmitCancel(newForm, fOnCancel, bOkButtonOnly);
+			this.addSubmitCancel(newForm, fOnCancel, bOkButtonOnly, "bottom", useNextButtons);
 		}
 		this.dialogContent.appendChild(newForm);
 		var boxPadding = $(sFormId).getAttribute("box_padding");
 		if(!boxPadding) boxPadding = 10;
 		this.dialogContent.setStyle({padding:boxPadding+'px'});
 
-		
-		if(fOnCancel){
-			this.dialogTitle.select('#modalCloseBtn')[0].observe("click", function(){fOnCancel(modal.getForm());hideLightBox();});
-		}
-		else{
-			this.dialogTitle.select('#modalCloseBtn')[0].observe("click", function(){hideLightBox();});
-		}			
-		
+		if(this.dialogTitle.select('#modalCloseBtn')[0]){
+            if(fOnCancel){
+                this.dialogTitle.select('#modalCloseBtn')[0].observe("click", function(){fOnCancel(modal.getForm());hideLightBox();});
+            }
+            else{
+                this.dialogTitle.select('#modalCloseBtn')[0].observe("click", function(){hideLightBox();});
+            }
+        }
+
 		if(fOnComplete)	{
 			newForm.onsubmit = function(){
 				try{
@@ -137,11 +167,18 @@ Class.create("Modal", {
 				return false;
 			};
 		}
+        var overlayStyle = undefined;
+        if($(sFormId).getAttribute("overlayStyle")){
+            overlayStyle = $(sFormId).getAttribute("overlayStyle").evalJSON();
+        }
 		this.showContent(this.elementName, 
 				$(sFormId).getAttribute("box_width"), 
 				$(sFormId).getAttribute("box_height"),
 				null,
-				($(sFormId).getAttribute("box_resize") && $(sFormId).getAttribute("box_resize") == "true"));
+				($(sFormId).getAttribute("box_resize") && $(sFormId).getAttribute("box_resize") == "true"),
+                overlayStyle,
+                sFormId
+        );
 		if($(newForm).select(".dialogFocus").length)
 		{
 			objToFocus = $(newForm).select(".dialogFocus")[0];
@@ -185,7 +222,7 @@ Class.create("Modal", {
 	 * @param boxHeight String Height in pixel or in percent
 	 * @param skipShadow Boolean Do not add a shadow
 	 */
-	showContent: function(elementName, boxWidth, boxHeight, skipShadow, boxAutoResize){
+	showContent: function(elementName, boxWidth, boxHeight, skipShadow, boxAutoResize, overlayStyle, formId){
 		ajaxplorer.disableShortcuts();
 		ajaxplorer.disableNavigation();
 		ajaxplorer.blurAll();
@@ -243,7 +280,7 @@ Class.create("Modal", {
             Event.observe(window, "resize", this.currentResizeListener);
         }
 			
-		displayLightBoxById(elementName);
+		displayLightBoxById(elementName, overlayStyle, (formId?'form-'+formId:null));
 		
 		// FORCE ABSOLUTE FOR SAFARI
 		$(elementName).style.position = 'absolute';
@@ -256,41 +293,128 @@ Class.create("Modal", {
 			// REFRESH PNG IMAGES FOR IE!
 			refreshPNGImages(this.dialogContent);			
 		}
-		
-		if(skipShadow) return;
-		Shadower.shadow($(elementName), 
-			{
-				distance: 3,
-				angle: 130,
-				opacity: 0.5,
-				nestedShadows: 3,
-				color: '#000000',
-				shadowStyle:{display:'block'}
-			}, true);
-				
+
 	},
 	/**
 	 * Find an editor using the editorData and initialize it
 	 * @param editorData Object
 	 */
-	openEditorDialog : function(editorData){
+	openEditorDialog : function(editorData, editorArgument){
 		if(!editorData.formId){
 			ajaxplorer.displayMessage('ERROR', 'Error, you must define a formId attribute in your &lt;editor&gt; manifest (or set it as openable="false")');
 			return;
 		}
 		var editorKlass = editorData.editorClass;
-		modal.prepareHeader(editorData.text, resolveImageSource(editorData.icon, '/images/actions/ICON_SIZE', 16));
+		modal.prepareHeader(editorData.text, resolveImageSource(editorData.icon, '/images/actions/ICON_SIZE', 16), editorData.icon_class);
 		var loadFunc = function(oForm){			
 			if(typeof(editorKlass) == "string"){
-				ajaxplorer.actionBar.editor = eval('new '+editorKlass+'(oForm)');
+				ajaxplorer.actionBar.editor = eval('new '+editorKlass+'(oForm, {editorData:editorData, context:modal})');
 			}else{
-				ajaxplorer.actionBar.editor = new editorKlass(oForm);
+				ajaxplorer.actionBar.editor = new editorKlass(oForm, {editorData:editorData, context:modal});
 			}
-			ajaxplorer.actionBar.editor.open(ajaxplorer.getUserSelection());
-			//ajaxplorer.actionBar.editor.resize();
+            if(editorArgument){
+                ajaxplorer.actionBar.editor.open(editorArgument);
+            }else{
+                ajaxplorer.actionBar.editor.open(ajaxplorer.getUserSelection().getUniqueNode());
+            }
+            ajaxplorer.actionBar.editor.getDomNode().observe("editor:updateTitle", function(event){
+                this.setContextTitle(event.memo);
+            }.bind(modal));
+            //ajaxplorer.actionBar.editor.resize();
 		};
 		this.showDialogForm('', editorData.formId, loadFunc, null, null, true, true);			
 	},
+
+    showSimpleModal : function(element, content, okCallback, cancelCallback, position){
+        var box = new Element("div", {className:"dialogBox css_boxshadow", style:'display:block;'});
+        box.insert(content);
+        content.addClassName("dialogContent");
+        addLightboxMarkupToElement(element);
+        if(Prototype.Browser.IE && !Prototype.Browser.IE10plus){
+            $("all_forms").insert(box);
+            var outBox = element.up(".dialogBox");
+            if(outBox){
+                box.setStyle({
+                    display:"block",
+                    zIndex : outBox.getStyle("zIndex"),
+                    top: parseInt(outBox.getStyle('top')),
+                    left: parseInt(outBox.getStyle('left'))
+                });
+            }else{
+                box.setStyle({
+                    display:"block",
+                    zIndex : 2000,
+                    top: parseInt(element.getStyle('top')),
+                    left: parseInt(element.getStyle('left'))
+                });
+            }
+        }else{
+            $(element).down("#element_overlay").insert({after:box});
+            $(element).down("#element_overlay").setStyle({opacity:0.9});
+            if(element.up('div.dialogBox')){
+                Effect.BlindDown(box, {
+                    duration:0.6,
+                    transition:Effect.Transitions.sinoidal
+                });
+            }
+        }
+        this.currentLightBoxElement = $(element);
+        this.currentLightBoxModal = box;
+        this.addSubmitCancel(content, cancelCallback, (cancelCallback==null), position);
+        content.down(".dialogButtons").select("input").each(function(button){
+            if(((cancelCallback==null) && button.getAttribute("name") == "close") || button.getAttribute("name") == "ok"){
+                button.observe("click", function(event){
+                    Event.stop(event);
+                    var res = okCallback();
+                    if(res){
+                        Effect.BlindUp(box, {
+                            duration:0.4,
+                            afterFinish:function(){
+                                content.down('div.dialogButtons').remove();
+                                $(element).down("#element_overlay").setStyle({opacity:0});
+                                box.remove();
+                                removeLightboxFromElement(element);
+                                this.currentLightBoxElement = null;
+                                this.currentLightBoxModal = null;
+                            }.bind(this)
+                        });
+                    }
+                }.bind(this));
+            }else{
+                button.stopObserving("click");
+                button.observe("click", function(event){
+                    Event.stop(event);
+                    var res = cancelCallback();
+                    if(res){
+                        Effect.BlindUp(box, {
+                            duration:0.4,
+                            afterFinish:function(){
+                                content.down('div.dialogButtons').remove();
+                                if($(element).down("#element_overlay")) {
+                                    $(element).down("#element_overlay").setStyle({opacity:0});
+                                }
+                                box.remove();
+                                removeLightboxFromElement(element);
+                                this.currentLightBoxElement = null;
+                                this.currentLightBoxModal = null;
+                            }.bind(this)
+                        });
+                    }
+                }.bind(this));
+            }
+        });
+    },
+
+
+    createTopCaret:function(element){
+        "use strict";
+        element.insert({top:'<span class="icon-caret-up ajxp-caret-up"></span>'});
+        var caret = element.down('span.ajxp-caret-up');
+        caret.setStyle({
+            left: (element.getWidth() -  caret.getWidth()) / 2 + 'px'
+        });
+    },
+
 	/**
 	 * Returns the current form, the real one.
 	 * @returns HTMLForm
@@ -307,7 +431,7 @@ Class.create("Modal", {
 		var winWidth = document.viewport.getWidth();
 		var winHeight = document.viewport.getHeight();
         var element = $(this.elementName);
-		boxWidth = element.getWidth();
+		var boxWidth = element.getWidth();
 		var boxHeight = element.getHeight();
 		
 		if(checkHeight && boxHeight > parseInt(winHeight*90/100)){
@@ -341,15 +465,6 @@ Class.create("Modal", {
 	 * Refresh appearance after the dialog box changed (shadow)
 	 */
 	refreshDialogAppearance:function(){
-		Shadower.shadow($(this.elementName), 
-			{
-				distance: 4,
-				angle: 130,
-				opacity: 0.5,
-				nestedShadows: 3,
-				color: '#000000',
-				shadowStyle:{display:'block'}
-			}, true);		
 	},
 	/**
 	 * Clear all content
@@ -379,18 +494,21 @@ Class.create("Modal", {
 	 * @param position String Position.insert() allowed key.
 	 * @returns HTMLElement
 	 */
-	addSubmitCancel: function(oForm, fOnCancel, bOkButtonOnly, position){
+	addSubmitCancel: function(oForm, fOnCancel, bOkButtonOnly, position, useNextButton){
 		var contDiv = new Element('div', {className:'dialogButtons'});
+        if(useNextButton){
+            contDiv.setStyle({direction:'rtl'});
+        }
 		var okButton = new Element('input', {
 			type:'image',
-			name:(bOkButtonOnly?'close':'ok'),
-			src:ajxpResourcesFolder+'/images/actions/22/dialog_'+(bOkButtonOnly?'close':'ok_apply')+'.png',
+			name:(bOkButtonOnly ? (bOkButtonOnly =='close' ? 'close' :'ok') :'ok'),
+			src:ajxpResourcesFolder+'/images/actions/22/'+(bOkButtonOnly?(bOkButtonOnly =='close' ? 'dialog_close' :'dialog_ok_apply'):(useNextButton?'forward':'dialog_ok_apply'))+'.png',
 			height:22,
 			width:22,
-			title:MessageHash[48]});
+			title:MessageHash[(bOkButtonOnly ? (bOkButtonOnly =='close' ? 49 : 48) : 48)]});
 		okButton.addClassName('dialogButton');
 		okButton.addClassName('dialogFocus');
-		contDiv.insert(okButton);
+        contDiv.insert(okButton);
 		if(!bOkButtonOnly)
 		{
 			var caButton = new Element('input', {
@@ -409,8 +527,9 @@ Class.create("Modal", {
 				caButton.observe("click",function(e){hideLightBox();Event.stop(e);return false;});
 			}
 			contDiv.insert(caButton);
-		}	
-		if(!position){
+		}
+
+        if(!position){
 			position = 'bottom';
 		}
 		var obj = {}; 
@@ -424,16 +543,58 @@ Class.create("Modal", {
 	 * Create a simple tooltip
 	 * @param element HTMLElement
 	 * @param title String
+     * @param position Describe tooltip position
+     * @param className Add an arbitrary class to the tooltip
+     * @param hookTo either 'element' or 'pointer'
+     * @param updateOnShow Load the tooltip content from the "title" element passed.
 	 */
-	simpleTooltip : function(element, title){
+	simpleTooltip : function(element, title, position, className, hookTo, updateOnShow){
+        if(!position) position = 'bottom right';
+        if(!hookTo) hookTo = 'pointer';
 		element.observe("mouseover", function(event){
-			var x = Event.pointerX(event)+10;
-			var y = Event.pointerY(event)+10;
 			if(!this.tooltip){
 				this.tooltip = new Element("div", {className:"simple_tooltip"});
+                if(className) this.tooltip.addClassName(className);
 				$$('body')[0].insert(this.tooltip);
-			}
-			this.tooltip.update(title);
+			}else{
+                this.tooltip.writeAttribute('class', '');
+                this.tooltip.addClassName('simple_tooltip');
+                if(className) this.tooltip.addClassName(className);
+            }
+            if(updateOnShow){
+                this.tooltip.update(title.cloneNode(true));
+            }else if(element.readAttribute('data-simpleTooltipTitle')){
+                this.tooltip.update(element.readAttribute('data-simpleTooltipTitle'));
+            }else{
+                this.tooltip.update(title);
+            }
+            var baseX = hookTo == "element" ? Element.cumulativeOffset(element).left : Event.pointerX(event);
+            var baseY = hookTo == "element" ? Element.cumulativeOffset(element).top : Event.pointerY(event);
+            if(hookTo == 'element'){
+                baseY -= Element.cumulativeScrollOffset(element).top;
+            }
+            var y = baseY+10;
+            if(position.indexOf('middle') != -1){
+                y -= 5 + parseInt(this.tooltip.getHeight())/2;
+            }else if(position.indexOf('bottom') != -1){
+                y -= 13 + parseInt(element.getHeight());
+            }else if(position.indexOf('top') != -1){
+                y -= 13 + parseInt(this.tooltip.getHeight());
+            }
+
+            var x;
+            if(position.indexOf('center') != -1){
+                x = baseX - (this.tooltip.getWidth() - element.getWidth())/2;
+                if(x < 0){
+                    x = (baseX);
+                    this.tooltip.addClassName("arrow_tip_arrow_left");
+                }
+            }else if(position.indexOf('right') != -1){
+                x = baseX + 10;
+            }else{
+                x = (baseX - 10 - parseInt(this.tooltip.getWidth()));
+            }
+
 			this.tooltip.setStyle({top:y+"px",left:x+"px"});
 			if(this.tipTimer){
 				window.clearTimeout(this.tipTimer);
@@ -456,7 +617,7 @@ Class.create("Modal", {
 	closeMessageDiv: function(){
 		if(this.messageDivOpen)
 		{
-			new Effect.Fade(this.messageBox);
+			new Effect.MessageFade(this.messageBox);
 			this.messageDivOpen = false;
 		}
 	},
@@ -485,25 +646,29 @@ Class.create("Modal", {
 		if(messageType == "ERROR"){ this.messageBox.removeClassName('logMessage');  this.messageBox.addClassName('errorMessage');}
 		else { this.messageBox.removeClassName('errorMessage');  this.messageBox.addClassName('logMessage');}
 		this.messageContent.update(message);
-		var container = $('content_pane');
-		if(!container){
+
+        var container;
+        if(ajaxplorer.getMessageBoxReference()){
+            container = ajaxplorer.getMessageBoxReference();
+        }else if($('content_pane')) {
+            container = $('content_pane');
+        }else {
 			container = $(ajxpBootstrap.parameters.get("MAIN_ELEMENT"));
 		}
 		var containerOffset = Position.cumulativeOffset(container);
 		var containerDimensions = container.getDimensions();
-		var boxHeight = $(this.messageBox).getHeight();
-		var topPosition = containerOffset[1] + containerDimensions.height - boxHeight - 20;
 		var boxWidth = parseInt(containerDimensions.width * 90/100);
 		var leftPosition = containerOffset[0] + parseInt(containerDimensions.width*5/100);
 		this.messageBox.setStyle({
-			top:topPosition+'px',
+			bottom:'20px',
 			left:leftPosition+'px',
 			width:boxWidth+'px'
 		});
-		if(!Modernizr.borderradius) {
-            new Effect.Corner(this.messageBox,"5px");
+		new Effect.MessageAppear(this.messageBox);
+        if(window.console){
+            if(messageType == 'ERROR') window.console.error(message);
+            else window.console.info(message);
         }
-		new Effect.Appear(this.messageBox);
 		this.tempoMessageDivClosing();
 	},
 	/**
@@ -527,11 +692,11 @@ Class.create("Modal", {
 	 * Bootloader helper
 	 * @param state Integer Current loading step
 	 */
-	updateLoadingProgress: function(state){	
+	updateLoadingProgress: function(state){
 		this.loadingStep --;
 		var percent = (1 - (this.loadingStep / this.loadingStepsCount));
 		if(window.loaderProgress){
-			window.loaderProgress.setPercentage(parseInt(percent)*100, false);
+			window.loaderProgress.setPercentage(parseFloat(percent)*100, true);
 		}
 		if(state && $('progressState')){
 			$('progressState').update(state);
@@ -561,7 +726,6 @@ Class.create("Modal", {
 	 * Close action. Remove shadow if any, call close callback if any.
 	 */
 	close: function(){	
-		Shadower.deshadow($(this.elementName));
 		if(this.closeFunction){
 			 this.closeFunction();
 			 //this.closeFunction = null;

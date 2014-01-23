@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 
 /** 
@@ -64,6 +64,11 @@ Class.create("Repository", {
      */
     owner:'',
 
+    /**
+     * @var String
+     */
+    description:'',
+
 	/**
 	 * Constructor
 	 * @param id String
@@ -98,7 +103,14 @@ Class.create("Repository", {
 	setLabel : function(label){
 		this.label = label;
 	},
-	
+
+    /**
+     * @return String
+     */
+    getDescription: function(){
+        return this.description;
+    },
+
 	/**
 	 * @returns String
 	 */
@@ -186,25 +198,27 @@ Class.create("Repository", {
 		}
 		for(var i=0;i<repoNode.childNodes.length;i++){
 			var childNode = repoNode.childNodes[i];
-			if(childNode.nodeName == "label"){
-				this.setLabel(childNode.firstChild.nodeValue);
-			}else if(childNode.nodeName == "client_settings"){
+            if(childNode.nodeName == "label"){
+                this.setLabel(childNode.firstChild.nodeValue);
+            }else if(childNode.nodeName == "description"){
+                this.description = childNode.firstChild.nodeValue;
+            }else if(childNode.nodeName == "client_settings"){
                 if(childNode.getAttribute('icon_tpl_id')){
                     this.setIcon(window.ajxpServerAccessPath+'&get_action=get_user_template_logo&template_id='+childNode.getAttribute('icon_tpl_id')+'&icon_format=small');
                 }else{
                     this.setIcon(childNode.getAttribute('icon'));
                 }
-				for(var j=0; j<childNode.childNodes.length;j++){
-					var subCh = childNode.childNodes[j];
-					if(subCh.nodeName == 'resources'){
-						this.resourcesManager.loadFromXmlNode(subCh);
-					}else if(subCh.nodeName == 'node_provider'){
-						var nodeProviderName = subCh.getAttribute("ajxpClass");
-						var nodeProviderOptions = subCh.getAttribute("ajxpOptions").evalJSON();
-						this.nodeProviderDef = {name:nodeProviderName, options:nodeProviderOptions};
-					}
-				}
-			}
-		}			
-	}
+                for(var j=0; j<childNode.childNodes.length;j++){
+                    var subCh = childNode.childNodes[j];
+                    if(subCh.nodeName == 'resources'){
+                        this.resourcesManager.loadFromXmlNode(subCh);
+                    }else if(subCh.nodeName == 'node_provider'){
+                        var nodeProviderName = subCh.getAttribute("ajxpClass");
+                        var nodeProviderOptions = subCh.getAttribute("ajxpOptions").evalJSON();
+                        this.nodeProviderDef = {name:nodeProviderName, options:nodeProviderOptions};
+                    }
+                }
+            }
+        }
+    }
 });

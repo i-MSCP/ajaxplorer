@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 
 /**
@@ -76,7 +76,7 @@ Class.create("SliderInput", {
 		}
         this.docObserver = function(event){
 			var element = Event.findElement(event);
-			if(!element.descendantOf(this.holder) && !element.descendantOf(this.input)
+			if(element.descendantOf && !element.descendantOf(this.holder) && !element.descendantOf(this.input)
                 && element != this.holder && element!=this.input) {
 				this.hide();
 			}
@@ -116,13 +116,19 @@ Class.create("SliderInput", {
 	/**
 	 * Show the sub pane
 	 */
-	show : function(){
-		var pos = this.computeAnchorPosition(this.input);
+	show : function(anchor){
+        var pos = this.computeAnchorPosition(this.input);
+        if(anchor && !anchor.target){
+            pos = this.computeAnchorPosition(anchor);
+        }
 		this.holder.setStyle(pos);
 		this.slider.setValue(parseFloat(this.input.value));
 		this.holder.show();
         this.input.addClassName(this.options.anchorActiveClass);
-		this.delay();
+        if(anchor && !anchor.target){
+            anchor.addClassName(this.options.anchorActiveClass);
+        }
+        this.delay();
 	},
 	
 	/**
@@ -154,8 +160,8 @@ Class.create("SliderInput", {
 	 */
 	computeAnchorPosition : function(anchor){
 		var anchorPosition = Position.cumulativeOffset($(anchor));
-		var anchorScroll = anchor.cumulativeScrollOffset();		
-		
+        var anchorScroll = anchor.cumulativeScrollOffset();
+
 		var topPos = anchorPosition[1] + anchor.getHeight() + this.options.topOffset - anchorScroll[1];
 		var leftPos = anchorPosition[0] + this.options.leftOffset - anchorScroll[0];
 		

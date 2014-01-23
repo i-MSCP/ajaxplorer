@@ -14,12 +14,15 @@
         <global_param name="PARSE_CONTENT_MAX_SIZE" type="string" label="CONF_MESSAGE[Parse Content Until]" description="CONF_MESSAGE[Skip content parsing and indexation for files bigger than this size (must be in Bytes)]" mandatory="true" default="500000"/>
         <global_param name="PARSE_CONTENT_HTML" type="string" label="CONF_MESSAGE[HTML files]" description="CONF_MESSAGE[List of extensions to consider as HTML file and parse content]" mandatory="true" default="html,htm"/>
         <global_param name="PARSE_CONTENT_TXT" type="string" label="CONF_MESSAGE[Text files]" description="CONF_MESSAGE[List of extensions to consider as Text file and parse content]" mandatory="true" default="txt"/>
-		<global_param name="UNOCONV" type="string" label="CONF_MESSAGE[Unoconv Path]" description="CONF_MESSAGE[Full path on the server to the 'unoconv' binary]" default="" mandatory="true"/>
-		<global_param name="PDFTOTEXT" type="string" label="CONF_MESSAGE[PdftoText Path]" description="CONF_MESSAGE[Full path on the server to the 'pdftotext' binary]" default="" mandatory="true"/>
+		<global_param name="UNOCONV" type="string" label="CONF_MESSAGE[Unoconv Path]" description="CONF_MESSAGE[Full path on the server to the 'unoconv' binary]" default="" mandatory="false"/>
+		<global_param name="PDFTOTEXT" type="string" label="CONF_MESSAGE[PdftoText Path]" description="CONF_MESSAGE[Full path on the server to the 'pdftotext' binary]" default="" mandatory="false"/>
+        <global_param name="QUERY_ANALYSER" type="select" choices="utf8num_insensitive|UTF8 Text/Num (case insensitive),utf8num_sensitive|UTF8 Text/Num (case sensitive),utf8_insensitive|UTF8 Text (case insensitive),utf8_sensitive|UTF8 Text (case sensitive),textnum_insensitive|Text/Num (case insensitive),textnum_sensitive|Text/Num (case sensitive),text_insensitive|Text (case insensitive),text_sensitive|Text (case sensitive)" label="CONF_MESSAGE[Query Analyzer]" description="CONF_MESSAGE[Analyzer used by Zend to parse the queries. Warning, the UTF8 analyzers require the php mbstring extension.]" default="textnum_insensitive" mandatory="false"/>
+        <global_param name="WILDCARD_LIMITATION" type="integer" label="CONF_MESSAGE[Wildcard limitation]" description="CONF_MESSAGE[For the sake of performances, it is not recommanded to use wildcard as a very first character of a query string. Lucene recommends asking the user minimum 3 characters before wildcard. Still, you can set it to 0 if necessary for your usecases.]" default="3" mandatory="false"/>
     </server_settings>
 	<registry_contributions>
 		<hooks>
-			<serverCallback hookName="node.change" methodName="updateNodeIndex" defer="true"></serverCallback>
+			<serverCallback hookName="node.change" methodName="updateNodeIndex" defer="true"/>
+			<serverCallback hookName="node.meta_change" methodName="updateNodeIndexMeta" defer="true"/>
 		</hooks>
 		<actions>
 			<action name="search">
@@ -27,9 +30,21 @@
 					write="false" adminOnly="false">
 				</rightsContext>
 				<processing>
-					<serverCallback methodName="applyAction"/>
+					<serverCallback methodName="applyAction" restParams="/query/" sdkMethodName="search">
+                        <input_param description="Query term" name="query" type="string"/>
+					</serverCallback>
 				</processing>
-			</action>					
+			</action>
+			<action name="search_by_keyword">
+				<rightsContext noUser="true" userLogged="only" read="true"
+					write="false" adminOnly="false">
+				</rightsContext>
+				<processing>
+					<serverCallback methodName="applyAction" restParams="/query/" sdkMethodName="searchByKeyword">
+                        <input_param description="Query term" name="query" type="string"/>
+					</serverCallback>
+				</processing>
+			</action>
             <action name="check_lock">
                 <rightsContext noUser="true" userLogged="only" read="true"
                     write="false" adminOnly="false">
@@ -39,25 +54,36 @@
                 </processing>
             </action>
 			<action name="index">
-				<gui text="index.lucene.1" title="index.lucene.2" src="lucene_images/ICON_SIZE/ark_view.png" accessKey="folder_access_key">
-					<context selection="false" dir="true" recycle="false"
-						actionBar="false" actionBarGroup="utils" contextMenu="true" infoPanel="false">
-					</context>
-				</gui>			
+				<gui text="index.lucene.1" title="index.lucene.2" iconClass="icon-book" src="lucene_images/ICON_SIZE/ark_view.png" accessKey="folder_access_key">
+                    <context selection="false" dir="true" recycle="hidden"
+                             actionBar="true" contextMenu="true" infoPanel="false"
+                             actionBarGroup="remote" inZip="false">
+                    </context>
+                </gui>
 				<rightsContext noUser="true" userLogged="only" read="true"
 					write="true" adminOnly="false">
-				</rightsContext>				
+				</rightsContext>
 				<processing>
 					<clientCallback prepareModal="false"><![CDATA[
-						var crtDir = ajaxplorer.getContextNode().getPath();
+                        var crtDir = "/";
+                        if(!ajaxplorer.getUserSelection().isEmpty()){
+                            crtDir = ajaxplorer.getUserSelection().getUniqueNode().getPath();
+                        }
 						var bgManager = ajaxplorer.actionBar.bgManager;
-						bgManager.queueAction("index", new Hash({dir:crtDir}), "Indexing current folder");
+						bgManager.queueAction("index", new Hash({dir:crtDir}), MessageHash["index.lucene.8"].replace('%s', crtDir));
 						bgManager.next();
-					]]></clientCallback>				
+					]]></clientCallback>
 					<serverCallback methodName="applyAction"/>
 				</processing>
-			</action>					
-		</actions>		
+			</action>
+		</actions>
+        <client_configs>
+            <template_part ajxpClass="AjxpTabulator" theme="vision" ajxpId="topPane" ajxpOptions='{"defaultTabId": "folders", "tabsTips":"top center", "tabInfos" : [{"id":"folders","label":"130", "title":"480","iconClass":"icon-folder-close","element":"folder_pane"},{"id":"shared","label":"363", "title":"481","iconClass":"icon-share","element":"shared_elements"},{"id":"flagged","label":"147", "title":"482","iconClass":"icon-bookmark-empty","element":"flagged_elements"}],"headerToolbarOptions":{"submenuClassName":"panelHeaderMenu","submenuPosition":"bottom right","submenuOffsetTop":12,"toolbarsList":["filter","vertical_splitter2-actions"],"skipBubbling":true, "skipCarousel":true,"submenuOffsetTop":2}}'><![CDATA[
+                <div id="folder_pane" ajxpClass="FoldersTree" ajxpOptions='{"display":"dz","replaceScroller":true}' ></div>
+                <div id="shared_elements" ajxpClass="FetchedResultPane" ajxpOptions='{"nodeProviderProperties":{"get_action":"search", "query":"keyword:ajxp_shared"},"reloadOnServerMessage":"tree/reload_shared_elements"}'></div>
+                <div id="flagged_elements" ajxpClass="FetchedResultPane" ajxpOptions='{"nodeProviderProperties":{"get_action":"search", "query":"keyword:ajxp_bookmarked"},"reloadOnServerMessage":"tree/reload_bookmarks"}'></div>
+            ]]></template_part>
+        </client_configs>
 	</registry_contributions>
     <dependencies>
         <!-- Stream Wrapper Access -->

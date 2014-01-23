@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 
 /**
@@ -25,18 +25,24 @@ Class.create("RepositorySelect", {
 	__implements : "IAjxpWidget",
 	_defaultString:'No Repository',
 	_defaultIcon : 'network-wired.png',
+    options : {},
 	/**
 	 * Constructor
 	 * @param oElement HTMLElement Anchor
 	 */
-	initialize : function(oElement){
+	initialize : function(oElement, options){
 		this.element = oElement;
 		this.element.ajxpPaneObject = this;
 		this.show = true;
+        if(options){
+            this.options = options;
+        }
 		this.createGui();
-		document.observe("ajaxplorer:repository_list_refreshed", function(e){
-			this.refreshRepositoriesMenu(e.memo.list,e.memo.active);
-		}.bind(this) );
+        this.observer = function(e){
+            this.refreshRepositoriesMenu(e.memo.list,e.memo.active);
+        }.bind(this);
+		document.observe("ajaxplorer:repository_list_refreshed",  this.observer);
+
 	},
 	
 	/**
@@ -51,6 +57,7 @@ Class.create("RepositorySelect", {
 	 */	
 	destroy : function(){
 		this.element = null;
+        document.stopObserving("ajaxplorer:repository_list_refreshed", this.observer);
 	},
 	
 	/**
@@ -60,7 +67,12 @@ Class.create("RepositorySelect", {
 		if(MessageHash){
 			this._defaultString = MessageHash[391];
 		}		
-		
+
+        if(this.options.simpleLabel){
+            this.element.insert(this.options.simpleLabel);
+            return;
+        }
+
 		this.icon = new Element('img', {
 			id:'repo_icon',
 			src:resolveImageSource(this._defaultIcon,'/images/actions/ICON_SIZE', 16),
@@ -96,7 +108,15 @@ Class.create("RepositorySelect", {
 	 * @param repositoryId String
 	 */
 	refreshRepositoriesMenu: function(repositoryList, repositoryId){
-		this.button.addClassName('disabled');
+
+        var button;
+        if(this.options.simpleLabel){
+            button = this.element;
+        }else{
+            button = this.button;
+        }
+
+		button.addClassName('disabled');
 		var actions = $A([]);
 		var lastActions = $A([]);
         var sharedActions = $A([]);
@@ -105,11 +125,20 @@ Class.create("RepositorySelect", {
 				var repoObject = pair.value;
 				var key = pair.key;
 				var selected = (key == repositoryId ? true:false);
-				
-				var actionData = {
-					name:repoObject.getLabel(),
+
+                if(repoObject.getAccessType().startsWith('ajxp_')){
+                    return;
+                }
+
+                var label = '<span class="menu_label">' + repoObject.getLabel() + '</span>';
+                if(repoObject.getDescription()){
+                    label += '<span class="menu_description">' + repoObject.getDescription() + '</span>';
+                }
+                var actionData = {
+					name:label,
 					alt:repoObject.getLabel() + (repoObject.getOwner() ? " ("+MessageHash[413]+" " + repoObject.getOwner()+ ")":""),
 					image:repoObject.getIcon(),
+                    icon_class:"icon-hdd",
                     overlay:repoObject.getOverlay(),
 					className:"edit",
 					disabled:selected,
@@ -120,7 +149,7 @@ Class.create("RepositorySelect", {
                 if(repoObject.userEditable){
                     actionData.moreActions = this.getContextActions(key);
                 }
-				if(repoObject.getAccessType() == "ajxp_shared" || repoObject.getAccessType() == "ajxp_conf"){
+				if(repoObject.getAccessType() == "ajxp_shared"){
 					lastActions.push(actionData);
                 }else if(repoObject.getOwner()){
                     sharedActions.push(actionData);
@@ -128,13 +157,13 @@ Class.create("RepositorySelect", {
 					actions.push(actionData);
 				}				
 				if(key == repositoryId){
-					this.label.setValue(repoObject.getLabel());
-					this.icon.src = repoObject.getIcon();
+					if(this.label) this.label.setValue(repoObject.getLabel());
+                    if(this.icon) this.icon.src = repoObject.getIcon();
 				}
 			}.bind(this));
 		}else{
-			this.label.setValue(this._defaultString);
-			this.icon.src = resolveImageSource(this._defaultIcon,'/images/actions/ICON_SIZE', 16);
+            if(this.label) this.label.setValue(this._defaultString);
+            if(this.icon) this.icon.src = resolveImageSource(this._defaultIcon,'/images/actions/ICON_SIZE', 16);
 		}
 		
 		var fonc = function(a,b){
@@ -145,21 +174,40 @@ Class.create("RepositorySelect", {
         actions.sort(fonc);
         if(sharedActions.length){
 	        sharedActions.sort(fonc);
-	        actions.push({separator:true});	        
+	        actions.push({
+                separator:true,
+                menuTitle:MessageHash[469]
+            });
 	        actions = actions.concat(sharedActions);
         }
         if(lastActions.length){
 	        lastActions.sort(fonc);
-	        actions.push({separator:true});
+	        actions.push({
+                separator:true,
+                menuTitle:'Other Actions'
+            });
 	        actions = actions.concat(lastActions);
         }
 
+        if(!actions.length){
+            if(this.repoMenu){
+                this.repoMenu.options.menuItems = actions;
+                this.repoMenu.refreshList();
+            }
+            return;
+        }
+
         var menuItems = $A();
+        if(!this.loadedOnce) {
+            ajaxplorer.actionBar.loadActionsFromRegistry(ajaxplorer.getXmlRegistry());
+            this.loadedOnce = true;
+        }
         var otherActions = ajaxplorer.actionBar.getActionsForAjxpWidget("RepositorySelect", this.element.id).each(function(otherAction){
             menuItems.push({
                 name:otherAction.getKeyedText(),
                 alt:otherAction.options.title,
                 action_id:otherAction.options.name,
+                icon_class:otherAction.options.icon_class,
                 className:"edit",
                 image:resolveImageSource(otherAction.options.src, '/images/actions/ICON_SIZE', 16),
                 callback:function(e){this.apply();}.bind(otherAction)
@@ -175,23 +223,25 @@ Class.create("RepositorySelect", {
 			this.repoMenu.refreshList();
 		}else{
 			this.repoMenu = new Proto.Menu({			
-				className: 'menu rootDirChooser',
-				mouseClick:'left',
-				anchor:this.button,
+				className: 'menu rootDirChooser menuDetails',
+				mouseClick:(this.options.menuEvent? this.options.menuEvent : 'left'),
+				anchor:button,
+                position: (this.options.menuPosition? this.options.menuPosition : 'bottom'),
 				createAnchor:false,
 				anchorContainer:$('dir_chooser'),
 				anchorSrc:ajxpResourcesFolder+'/images/arrow_down.png',
 				anchorTitle:MessageHash[200],
-				topOffset:2,
-				leftOffset:-127,
-				menuTitle:MessageHash[200],
+				topOffset:(this.options.menuOffsetTop !== undefined ? this.options.menuOffsetTop: 2),
+				leftOffset:(this.options.menuOffsetLeft !== undefined ? this.options.menuOffsetLeft: -127),
+				menuTitle:MessageHash[468],
 				menuItems: actions,
+                menuMaxHeight:this.options.menuMaxHeight,
 				fade:true,
 				zIndex:1500
-			});		
+			});
 			this.notify("createMenu");
 		}
-		if(actions.length) this.button.removeClassName('disabled');
+		if(actions.length) button.removeClassName('disabled');
 	},
 	/**
 	 * Listener for repository selection 
@@ -204,6 +254,7 @@ Class.create("RepositorySelect", {
 	 * Resize widget
 	 */
 	resize : function(){
+        if(!this.currentRepositoryLabel) return;
 		var parent = this.element.getOffsetParent();
 		if(parent.getWidth() < this.currentRepositoryLabel.getWidth()*3.5){
 			this.showElement(false);
@@ -223,6 +274,7 @@ Class.create("RepositorySelect", {
 				name:MessageHash[423],
 				alt:MessageHash[423],
 				image:ajxpResourcesFolder+'/images/actions/16/delete_bookmark.png',
+                icon_class:'icon-remove',
 				disabled:false,
 				className:"edit",
 				callback:function(e){
@@ -262,6 +314,7 @@ Class.create("RepositorySelect", {
 	 * @returns Integer
 	 */
 	getActualWidth : function(){
+        if(this.options.simpleLabel) return this.element.getWidth();
 		if(this.currentRepositoryLabel.visible()) return this.element.getWidth();
 		else return this.button.getWidth() + 10;
 	}

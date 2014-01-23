@@ -1,9 +1,11 @@
 <html xmlns:ajxp>
 	<head>
-		<title>AjaXplorer</title>
+		<title>Pydio</title>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-		<link rel="icon" type="image/x-png" href="res/themes/umbra/images/html-folder.png">
-		<link rel="stylesheet" type="text/css" href="res/themes/umbra/css/allz.css">
+		<link rel="icon" type="image/x-png" href="res/themes/vision/images/html-folder.png">
+		<link rel="stylesheet" type="text/css" href="res/themes/vision/css/allz.css">
+        <link rel="stylesheet" href="res/themes/vision/css/font-awesome.css"/>
+                <link rel="stylesheet" href="res/themes/vision/css/media.css"/>
 		<style type="text/css">
 			.widget_title{
 				font-family: "Trebuchet MS", Arial, Helvetica;
@@ -24,6 +26,12 @@
 				overflow:hidden;
 				position:relative;
 			}
+            .action_bar{
+                background-color: #ffffff;
+            }
+            .action_bar > .toolbarGroup{
+                height: 40px;
+            }
 		</style>
 		<script language="javascript" type="text/javascript" src="res/js/ajaxplorer_boot.js"></script>
 		<script type="text/javascript">
@@ -36,13 +44,17 @@
 				"MAIN_ELEMENT":"ajxp_widget",
 				"SERVER_PREFIX_URI": "../../"
 			};
+            document.observe("ajaxplorer:before_gui_load", function(e){
+               ajaxplorer.currentThemeUsesIconFonts = true;
+               document.documentElement.className += " ajxp_theme_vision";
+           });
 			window.ajxpBootstrap = new AjxpBootstrap(startParameters);
 		</script>
 	</head>
 
 	<body bgcolor="#cccccc" text="#000000" marginheight="0" marginwidth="0" leftmargin="0" topmargin="0">
 	<div align="center">
-		<div class="widget_title">AjaXplorer Widget Sample</div>
+		<div class="widget_title">Pydio Widget Sample</div>
 		<div id="ajxp_widget" ajxpClass="AjxpPane" ajxpOptions="{}"></div>
 	</div>		
 	</body>

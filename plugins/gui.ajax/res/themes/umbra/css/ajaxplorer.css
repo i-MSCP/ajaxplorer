@@ -1,4 +1,4 @@
-.even
+table.sort-table tr:nth-child(even)
 {
     background-color: #f9f9f9;
 }
@@ -14,7 +14,7 @@
     background: linear-gradient(top, rgba(255,255,255,1) 0%,rgba(229,229,229,1) 100%); /* W3C */
 }
 
-.css_gradient, .infoPanelGroup, .panelHeader, .dialogBox, .action_bar.floatingBar, .largeButton, .fakeUploadButton{
+.css_gradient, .infoPanelGroup, .panelHeader, .dialogBox, .action_bar.floatingBar, .largeButton, .fakeUploadButton, .header_label, .header_resizer{
     background: rgb(247,247,247); /* Old browsers */
     background: -moz-linear-gradient(top, rgba(247,247,247,1) 0%, rgba(227,227,227,1) 50%, rgba(216,216,216,1) 51%, rgba(242,242,242,1) 100%); /* FF3.6+ */
     background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(247,247,247,1)), color-stop(50%,rgba(227,227,227,1)), color-stop(51%,rgba(216,216,216,1)), color-stop(100%,rgba(242,242,242,1))); /* Chrome,Safari4+ */
@@ -25,7 +25,7 @@
     background: linear-gradient(top, rgba(247,247,247,1) 0%,rgba(227,227,227,1) 50%,rgba(216,216,216,1) 51%,rgba(242,242,242,1) 100%); /* W3C */
 }
 
-div.ascending > .css_gradient{
+div.ascending > .header_label{
     background: url("../images/arrow_up_margin.png") right center no-repeat; /* Old browsers */
     background: url("../images/arrow_up_margin.png") right center no-repeat, -moz-linear-gradient(top, rgba(247,247,247,1) 0%, rgba(227,227,227,1) 50%, rgba(216,216,216,1) 51%, rgba(242,242,242,1) 100%); /* FF3.6+ */
     background: url("../images/arrow_up_margin.png") right center no-repeat, -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(247,247,247,1)), color-stop(50%,rgba(227,227,227,1)), color-stop(51%,rgba(216,216,216,1)), color-stop(100%,rgba(242,242,242,1))); /* Chrome,Safari4+ */
@@ -36,7 +36,7 @@ div.ascending > .css_gradient{
     background: url("../images/arrow_up_margin.png") right center no-repeat, linear-gradient(top, rgba(247,247,247,1) 0%,rgba(227,227,227,1) 50%,rgba(216,216,216,1) 51%,rgba(242,242,242,1) 100%); /* W3C */
 }
 
-div.descending > .css_gradient{
+div.descending > .header_label{
     background: url("../images/arrow_down_margin.png") right center no-repeat; /* Old browsers */
     background: url("../images/arrow_down_margin.png") right center no-repeat, -moz-linear-gradient(top, rgba(247,247,247,1) 0%, rgba(227,227,227,1) 50%, rgba(216,216,216,1) 51%, rgba(242,242,242,1) 100%); /* FF3.6+ */
     background: url("../images/arrow_down_margin.png") right center no-repeat, -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(247,247,247,1)), color-stop(50%,rgba(227,227,227,1)), color-stop(51%,rgba(216,216,216,1)), color-stop(100%,rgba(242,242,242,1))); /* Chrome,Safari4+ */
@@ -188,6 +188,19 @@ textarea{
    border-radius : 5px;
 }
 
+div.detailed > div.thumbnail_selectable_cell {
+    width: 48%;
+    text-align: left;
+    height: 55px;
+    overflow: hidden;
+}
+
+div.detailed > div.thumbnail_selectable_cell > div.thumbnail_selectable_cell {
+    margin: 9px 11px;
+    border: 0;
+    background: transparent;
+}
+
 .thumbnail_iconlike_shadow{
     border: 1px solid white;
     -webkit-box-shadow: 0 0 5px #666666;
@@ -210,9 +223,11 @@ textarea{
 	box-shadow : 1px 2px 3px rgba(50, 50, 50, 0.8);*/
 }
 
-.thumbLabel
+div.detailed div.thumbLabel
 {
-   /*overflow: hidden;*/
+    font-size: 1.4em;
+    margin-top: 8px;
+    margin-bottom: 1px;
 }
 
 .img_cont
@@ -326,6 +341,10 @@ div.shadow_class
     height: 22px;
 }
 
+.dialogContent select[multiple]{
+    height: 66px;
+}
+
 .dialogContent input:focus,
 .dialogContent input[type="text"]:focus,
 .dialogContent input[type="password"]:focus,
@@ -357,8 +376,9 @@ div.shadow_class
 
 .dialogLegend
 {
-    color:#aaa;
-    font-size:0.9em;
+    color: #666;
+    padding-bottom: 5px;
+    line-height: 16px;
 }
 
 .dialogButtons
@@ -378,6 +398,17 @@ fieldSet input.dialogButton
     background-color: #f1f1ef;
     border-radius: 3px;
     -moz-border-radius: 3px;
+}
+
+.dialogButtonsCheckbox{
+
+    float: left;
+    margin-top: 9px;
+
+}
+
+.dialogButtonsCheckbox label{
+    cursor: pointer;
 }
 
 .editContent, .editContent div
@@ -444,15 +475,19 @@ textarea#myCode
 }
 
 .largeButton{
-    padding: 5px;
-    font-size: 14px;
+    padding: 2px 4px 1px;
+    font-size: 12px;
     text-align: center;
-    border: 1px solid #CCC;
-    -webkit-border-radius: 7px;
-    -moz-border-radius: 7px;
-    border-radius: 7px;
+    border: 1px solid #A7A7A7;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
     cursor: pointer;
-    text-shadow : 1px 1px 1px #FFFFFF;
+    text-shadow: 1px 1px 1px white;
+    box-shadow: inset 1px 1px 1px white;
+    width: 95px;
+    display: inline-block !important;
+    margin: 0 6px;
 }
 .largeButton img{
     width:16px;
@@ -461,6 +496,7 @@ textarea#myCode
     position: relative;
     top: -2px;
     margin-right: 5px;
+    margin-top: 3px;
 }
 
 .dialogArrow
@@ -600,6 +636,26 @@ div.accordion_toggle_active{
 div.accordion_content{
     overflow: hidden;
     padding: 5px;
+}
+
+div.dialogContentMainTitle{
+    color: #2B70BE;
+    font-size: 20px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #2B70BE;
+    padding-bottom: 0px;
+}
+
+div.oneFieldForm{
+    margin-bottom: 13px;
+    background-color: #EEEEEE;
+    padding: 3px 6px;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+div.oneFieldForm input.SF_input{
+    background: white !important;
 }
 
 /********************/
@@ -745,6 +801,22 @@ input.SF_input.SF_number{
     height: 3px;
 }
 
+.SF_image_block{
+    max-width: 80px;
+    float: left;
+}
+
+.SF_image.small{
+    max-width: 80px;
+    max-height: 80px;
+}
+.SF_image_link{
+    display: inline-block;
+    width: 80px;
+    cursor: pointer;
+    text-align: center;
+}
+
 .accordion_toggle_failed {
 	background-color: #D8B0B0 !important;
 }
@@ -780,6 +852,10 @@ input.SF_input.SF_number{
     font-size:15px;
     font-weight:bold;
     color: #ddd;
+}
+
+.toolbarGroup {
+    display: inline;
 }
 
 #tree_container{
@@ -825,6 +901,37 @@ input.SF_input.SF_number{
 }
 .action_bar.editor_action_bar{
     height:55px;
+}
+
+div.editor_header{
+    height: 55px;
+}
+
+div.editor_header > div.editor_action_bar {
+    position: absolute;
+    right: 0;
+    padding-right: 8px;
+    background: none;
+    padding-top: 15px;
+    height: 42px;
+    padding-left: 10px;
+}
+
+div.editor_header > div.editor_action_bar > div.separator{
+    display: none !important;
+}
+
+div.editor_header > span.header_label{
+    font-size: 24px;
+    width: 100%;
+    padding: 15px 0 0 62px;
+    display: inline-block;
+    background-image: url('../images/mimes/64/user-acl.png');
+    background-size: 40px;
+    background-repeat: no-repeat;
+    background-position: 14px 9px;
+    text-shadow: 1px 1px 5px black;
+    overflow: visible;
 }
 
 .action_bar.text_only{
@@ -1141,7 +1248,8 @@ a.carousel-control img{
    background-color: rgba(255, 255, 255, 0.7);
 }
 
-.inline_disabled img
+.inline_disabled img,
+.SF_disabled img
 {
 	filter:alpha(opacity=30);
 	opacity: 0.3;
@@ -1188,7 +1296,6 @@ img.simple_button_arrow{
 {
     font-style: normal;
     cursor: pointer;
-	margin-left:3px;
 	margin-right:7px;
 	margin-top:-4px;
 }
@@ -1205,6 +1312,29 @@ img.simple_button_arrow{
 	cursor: pointer;
 }
 
+.user_widget_label.withImage{
+    position: relative;
+    padding:0;
+}
+
+.user_widget_label.withImage i{
+    font-weight: bold;
+    line-height: 22px;
+    display: inline-block;
+    padding: 0 4px 0 8px;
+}
+
+.user_widget_label.withImage i img{
+}
+
+img.user_widget_mini{
+    vertical-align: middle;
+    height: 16px;
+    border: 1px solid white;
+    top: 5px;
+    left: 2px;
+    box-shadow: 1px 1px 0px #666;
+}
 
 .locationbar_title
 {
@@ -2039,6 +2169,10 @@ meta_opt.checked {
    padding-bottom: 10px;
 }
 
+div.ipanel_no_selection_select {
+    display: none;
+}
+
 .infoPanelTable
 {
 	font-size: 11px;
@@ -2504,6 +2638,132 @@ div.user_role{
 	border : 1px solid #ffffef;
 }
 
+.editable_users_list{
+
+    border: 1px solid #AAAAAA;
+    height: 160px;
+    overflow: auto;
+    clear:left;
+    position: relative;
+    margin-top: 2px;
+    border-radius: 3px;
+
+
+}
+
+.editable_users_list div.user_entry,
+li.complete_user_entry,
+li.complete_group_entry,
+li.complete_user_entry_temp
+{
+    clear: left;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-bottom: 1px solid #F1F1EF;
+}
+
+div.editable_users_list div.user_entry_rights{
+    float: right;
+    padding-top: 8px;
+    padding-right: 4px;
+}
+.no-flexbox div.editable_users_list div.user_entry_rights{
+    padding-top: 4px;
+}
+
+li.complete_user_entry,
+li.complete_group_entry,
+li.complete_user_entry_temp{
+    padding: 0 !important;
+}
+
+
+.editable_users_list div.user_entry span.user_entry_label,
+li.complete_user_entry span.user_entry_label,
+li.complete_group_entry span.user_entry_label,
+li.complete_user_entry_temp span.user_entry_label
+{
+    display: inline-block;
+    padding: 8px 5px 8px 25px !important;
+    background-image: url("../images/mimes/16/user.png");
+    background-repeat: no-repeat;
+    background-position: 4px 5px;
+
+}
+
+li.complete_user_entry{
+
+}
+
+li.complete_group_entry span.user_entry_label,
+.editable_users_list div.group_entry span.user_entry_label
+{
+    background-image: url("../images/mimes/16/users-folder.png");
+}
+
+li.complete_user_entry_temp span.user_entry_label,
+.editable_users_list div.user_entry_temp span.user_entry_label
+{
+    background-image: url("../images/mimes/16/user_shared.png");
+}
+
+.editable_users_list span.delete_user_entry{
+    background-image: url("../images/mimes/16/trashcan.png");
+    width: 12px;
+    height: 12px;
+    display: inline-block;
+    background-size: 100%;
+    margin-left: 5px;
+    cursor: pointer;
+}
+
+.editable_users_list label{
+    padding: 0 3px;
+    cursor: pointer;
+}
+
+span.user_entry_check{
+    display: inline-block;
+    padding: 0 5px;
+}
+
+.editable_users_list.user_entry_check_hidden span.user_entry_check{
+    display: none;
+}
+
+#create_shared_user{
+    width: 84%;
+    background-color: #EEE;
+    margin: 0 6%;
+    box-shadow: 0px 0px 7px #666;
+    padding: 1px 4px;
+    border-radius: 0px 0px 7px 7px;
+
+    position: absolute;
+    top: -1px;
+}
+
+.editable_users_header{
+    float: right;
+    margin-top: 2px;
+    font-style: italic;
+    font-size: 9px;
+    color: #AAA;
+    padding: 2px;
+}
+
+.editable_users_header span,
+div.user_entry span.cbContainer
+{
+    display: inline-block;
+    padding: 0 2px;
+    width: 30px;
+    text-align: center;
+    cursor: pointer;
+}
+
+div.user_entry span.cbContainer{
+
+}
 /***********************/
 /* EDITORS & DIAPORAMA */
 /***********************/
@@ -2586,6 +2846,10 @@ div.autocomplete
       border:1px solid #bbb;
       margin:8px 0px 0px;
       padding:0px;
+      box-shadow: 2px 2px 3px #cccccc;
+      border-radius: 0 0 2px 2px;
+    max-height: 200px;
+    overflow-y: auto;
 }
 div.autocomplete ul
 {
@@ -2602,7 +2866,7 @@ div.autocomplete ul li
       list-style-type:none;
       display:block;
       margin:0;
-      padding:2px;
+      padding:7px;
       cursor:pointer;
 }
 
@@ -2639,7 +2903,8 @@ div.menu a {
 }
 .menu li {
 	list-style-position: outside;
-	height: 24px;
+	min-height: 24px;
+    height: auto;
 }
 
 .menu.desktop {
@@ -2692,7 +2957,7 @@ div.menu a {
     padding-bottom: 0px;
 }
 
-.rootDirChooser li.menuTitle {
+.menu li.menuTitle {
    font-size: 11px;
    font-weight: bold;
    padding-top: 2px;
@@ -2741,10 +3006,15 @@ div.menu a {
 	filter: alpha(opacity=25);
 	zoom: 1;
 }
-.menu.desktop li.separator {
+.menu.desktop li.separator a{
+    display: none !important;
+}
+.menu li.separator {
 	border-bottom: 1px solid #fff;
 	margin: 1px 1px 0 1px;
 	line-height: 1px !important;
+    height: 1px !important;
+    min-height: 1px !important;
 }
 .menu.desktop.toolbarmenu li.separator{
 	border-bottom: 1px solid #ddd;
@@ -2794,6 +3064,10 @@ div.menu a {
    padding-right: 20px;
    padding-left: 5px;
    padding-top: 4px;
+}
+
+.rootDirChooser span.menu_description{
+    display:none;
 }
 
 .rootDirChooser a img,
@@ -2931,6 +3205,19 @@ div.menu a {
 	box-shadow : 5px 5px 20px rgba(100, 100, 100, 0.5);
 }
 
+.dialogBox.css_boxshadow{
+    -moz-box-shadow : 5px 5px 60px #303030;
+    -webkit-box-shadow : 5px 5px 60px #303030;
+	box-shadow : 5px 5px 60px #303030;
+}
+
+div.dialogBox div.dialogBox.css_boxshadow{
+    -moz-box-shadow: 2px 2px 10px #4C5B6B;
+    -webkit-box-shadow: 2px 2px 10px #4C5B6B;
+    box-shadow: 2px 2px 10px #4C5B6B;
+    border: 1px solid white;
+}
+
 /****************************************/
 /* WEBDAV PREFERENCES                    */
 /****************************************/
@@ -2984,7 +3271,7 @@ td.ip_geo_cell{
 
 .pluginfo_list li {
     list-style: none;
-    padding: 2px 0;
+    padding: 5px 2px;
     overflow: hidden;
 }
 
@@ -2992,4 +3279,99 @@ td.ip_geo_cell{
     display: inline-block;
     width: 90px;
     font-weight: bold;
+}
+
+/************************************************/
+/*     NICE ROUNDED PURE-CSS TABS                                     */
+/*     From http://css-tricks.com/better-tabs-with-round-out-borders/ */
+/************************************************/
+.tabrow {
+    list-style: none;
+    margin: 10px 0 0px;
+    padding: 0 20px;
+    line-height: 24px;
+    height: 26px;
+    overflow: hidden;
+    font-size: 13px;
+    font-family: Verdana;
+    position: relative;
+}
+
+.tabpanes {
+    background-color: #ffffff;
+}
+
+.tabrow li {
+    border: 1px solid #AAA;
+    background: #D1D1D1;
+    background: -o-linear-gradient(top, #ECECEC 50%, #D1D1D1 100%);
+    background: -ms-linear-gradient(top, #ECECEC 50%, #D1D1D1 100%);
+    background: -moz-linear-gradient(top, #ECECEC 50%, #D1D1D1 100%);
+    background: -webkit-linear-gradient(top, #ECECEC 50%, #D1D1D1 100%);
+    background: linear-gradient(top, #ECECEC 50%, #D1D1D1 100%);
+    display: inline-block;
+    position: relative;
+    z-index: 0;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    box-shadow: 0 3px 3px rgba(0, 0, 0, 0.4), inset 0 1px 0 #FFF;
+    text-shadow: 0 1px #FFF;
+    margin: 0 -5px;
+    padding: 0 20px;
+}
+.tabrow span {
+    color: #555;
+    text-decoration: none;
+    cursor: pointer;
+}
+.tabrow li.selected {
+    background: #FFF;
+    color: #333;
+    z-index: 2;
+    border-bottom-color: #FFF;
+}
+.tabrow:before {
+    position: absolute;
+    content: " ";
+    width: 100%;
+    bottom: 0;
+    left: 0;
+    border-bottom: 1px solid #AAA;
+    z-index: 1;
+}
+.tabrow li:before,
+.tabrow li:after {
+    border: 1px solid #AAA;
+    position: absolute;
+    bottom: -1px;
+    width: 5px;
+    height: 5px;
+    content: " ";
+}
+.tabrow li:before {
+    left: -6px;
+    border-bottom-right-radius: 6px;
+    border-width: 0 1px 1px 0;
+    box-shadow: 2px 2px 0 #D1D1D1;
+}
+.tabrow li:after {
+    right: -6px;
+    border-bottom-left-radius: 6px;
+    border-width: 0 0 1px 1px;
+    box-shadow: -2px 2px 0 #D1D1D1;
+}
+.tabrow li.selected:before {
+    box-shadow: 2px 2px 0 #FFF;
+}
+.tabrow li.selected:after {
+    box-shadow: -2px 2px 0 #FFF;
+}
+
+#sm2-container{
+    position: absolute;
+    top: -1000px;
+}
+
+#refresh_button, #thumb_size_button{
+    display:none;
 }

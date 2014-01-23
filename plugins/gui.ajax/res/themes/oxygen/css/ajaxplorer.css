@@ -95,13 +95,6 @@ textarea{
 	box-shadow : 1px 1px 1px rgba(100, 100, 100, 0.5);
 }
 
-.thumbnail_iconlike_shadow{
-    border: 1px solid white;
-    -webkit-box-shadow: 0 0 5px #666666;
-    -moz-box-shadow: 0 0 5px #666666;
-    box-shadow: 0 0 5px #666666;
-}
-
 .selectable_div div.selected{
    border: 1px solid #ddd;
 	-moz-box-shadow : 1px 2px 3px rgba(50, 50, 50, 0.8);
@@ -213,7 +206,7 @@ div.shadow_class
 .dialogContent select
 {
     margin-left:0px;
-    width: 180px;
+    /*width: 180px;*/
     border: 1px solid #aaa;
     background-image:url('../images/locationBg.gif');
     background-repeat: no-repeat;
@@ -252,7 +245,7 @@ div.shadow_class
 .dialogContent input[type="radio"]
 {
 	height: auto;
-	width: auto;
+	width: auto !important;
 	border-radius : 0px;
 }
 
@@ -908,6 +901,31 @@ a.carousel-control img{
 	cursor: pointer;
 }
 
+.user_widget_label.withImage{
+    position: relative;
+    padding:0;
+}
+
+.user_widget_label.withImage i{
+    font-weight: bold;
+    line-height: 22px;
+    display: inline-block;
+    padding: 0 4px 0 8px;
+}
+
+.user_widget_label.withImage i img{
+}
+
+img.user_widget_mini{
+    vertical-align: middle;
+    height: 16px;
+    border: 1px solid white;
+    top: 5px;
+    left: 2px;
+    box-shadow: 1px 1px 0px #666;
+}
+
+
 
 .locationbar_title
 {
@@ -1262,6 +1280,31 @@ a.enabled
 .action_bar
 {
     /*background-color: #CCDDEE;*/
+}
+
+div.editor_header{
+    height: 55px;
+}
+
+div.editor_header > div.editor_action_bar {
+    float: right;
+    padding-right: 10px;
+    background: none;
+    padding-top: 5px;
+}
+
+div.editor_header > div.editor_action_bar > div.separator{
+    display: none !important;
+}
+
+div.editor_header > span.header_label{
+    font-size: 28px;
+    padding: 15px 62px;
+    display: inline-block;
+    background-image: url('../images/mimes/64/user-acl.png');
+    background-size: 40px;
+    background-repeat: no-repeat;
+    background-position: 14px 9px;
 }
 
 /*
@@ -2172,6 +2215,101 @@ div.user_role{
 	border : 1px solid #ffffef;
 }
 
+.editable_users_list{
+
+    border: 1px solid #AAAAAA;
+    height: 130px;
+    overflow: auto;
+    clear:left;
+    position: relative;
+    margin-top: 5px;
+    border-radius: 3px;
+
+}
+
+.editable_users_list div.user_entry,
+li.complete_user_entry,
+li.complete_group_entry,
+li.complete_user_entry_temp
+{
+    clear: left;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-bottom: 1px solid #F1F1EF;
+}
+
+.editable_users_list div.user_entry_rights{
+    float: right;
+    padding-top: 8px;
+    padding-right: 4px;
+}
+.no-flexbox .editable_users_list div.user_entry_rights{
+    padding-top: 4px;
+}
+
+li.complete_user_entry,
+li.complete_group_entry,
+li.complete_user_entry_temp{
+    padding: 0 !important;
+}
+
+
+.editable_users_list div.user_entry span.user_entry_label,
+li.complete_user_entry span.user_entry_label,
+li.complete_group_entry span.user_entry_label,
+li.complete_user_entry_temp span.user_entry_label
+{
+    display: inline-block;
+    padding: 8px 5px 8px 25px !important;
+    background-image: url("../images/mimes/16/user.png");
+    background-repeat: no-repeat;
+    background-position: 4px 5px;
+
+}
+
+li.complete_user_entry{
+
+}
+
+li.complete_group_entry span.user_entry_label,
+.editable_users_list div.group_entry span.user_entry_label
+{
+    background-image: url("../images/mimes/16/users-folder.png");
+}
+
+li.complete_user_entry_temp span.user_entry_label,
+.editable_users_list div.user_entry_temp span.user_entry_label
+{
+    background-image: url("../images/mimes/16/user_shared.png");
+}
+
+.editable_users_list span.delete_user_entry{
+    background-image: url("../images/mimes/16/trashcan.png");
+    width: 12px;
+    height: 12px;
+    display: inline-block;
+    background-size: 100%;
+    margin-left: 5px;
+    cursor: pointer;
+}
+
+.editable_users_list label{
+    padding: 0 3px;
+    cursor: pointer;
+}
+
+#create_shared_user{
+    width: 84%;
+    background-color: #EEE;
+    margin: 0 6%;
+    box-shadow: 0px 0px 7px #666;
+    padding: 1px 4px;
+    border-radius: 0px 0px 7px 7px;
+
+    position: absolute;
+    top: -1px;
+}
+
+
 /***********************/
 /* EDITORS & DIAPORAMA */
 /***********************/
@@ -2212,6 +2350,7 @@ div.autocomplete
       border:1px solid #bbb;
       margin:8px 0px 0px;
       padding:0px;
+      z-index: 10000 !important;
 }
 div.autocomplete ul 
 {
@@ -2585,4 +2724,90 @@ overflow: hidden;
 display: inline-block;
 width: 90px;
 font-weight: bold;
+}
+
+/************************************************/
+/*     NICE ROUNDED PURE-CSS TABS                                     */
+/*     From http://css-tricks.com/better-tabs-with-round-out-borders/ */
+/************************************************/
+.tabrow {
+    list-style: none;
+    margin: 10px 0 0px;
+    padding: 0 20px;
+    line-height: 21px;
+    height: 23px;
+    overflow: hidden;
+    font-size: 11px;
+    font-family: verdana;
+    position: relative;
+}
+
+.tabpanes {
+    background-color: #ffffff;
+}
+
+.tabrow li {
+    border: 1px solid #AAA;
+    background: #D1D1D1;
+    background: -o-linear-gradient(top, #ECECEC 50%, #D1D1D1 100%);
+    background: -ms-linear-gradient(top, #ECECEC 50%, #D1D1D1 100%);
+    background: -moz-linear-gradient(top, #ECECEC 50%, #D1D1D1 100%);
+    background: -webkit-linear-gradient(top, #ECECEC 50%, #D1D1D1 100%);
+    background: linear-gradient(top, #ECECEC 50%, #D1D1D1 100%);
+    display: inline-block;
+    position: relative;
+    z-index: 0;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    box-shadow: 0 3px 3px rgba(0, 0, 0, 0.4), inset 0 1px 0 #FFF;
+    text-shadow: 0 1px #FFF;
+    margin: 0 -5px;
+    padding: 0 20px;
+}
+.tabrow span {
+    color: #555;
+    text-decoration: none;
+    cursor: pointer;
+}
+.tabrow li.selected {
+    background: #FFF;
+    color: #333;
+    z-index: 2;
+    border-bottom-color: #FFF;
+}
+.tabrow:before {
+    position: absolute;
+    content: " ";
+    width: 100%;
+    bottom: 0;
+    left: 0;
+    border-bottom: 1px solid #AAA;
+    z-index: 1;
+}
+.tabrow li:before,
+.tabrow li:after {
+    border: 1px solid #AAA;
+    position: absolute;
+    bottom: -1px;
+    width: 5px;
+    height: 5px;
+    content: " ";
+}
+.tabrow li:before {
+    left: -6px;
+    border-bottom-right-radius: 6px;
+    border-width: 0 1px 1px 0;
+    box-shadow: 2px 2px 0 #D1D1D1;
+}
+.tabrow li:after {
+    right: -6px;
+    border-bottom-left-radius: 6px;
+    border-width: 0 0 1px 1px;
+    box-shadow: -2px 2px 0 #D1D1D1;
+}
+.tabrow li.selected:before {
+    box-shadow: 2px 2px 0 #FFF;
+}
+.tabrow li.selected:after {
+    box-shadow: -2px 2px 0 #FFF;
 }

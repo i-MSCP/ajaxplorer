@@ -1,25 +1,25 @@
 <?php
 /*
-* Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
-* This file is part of AjaXplorer.
+* Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+* This file is part of Pydio.
 *
-* AjaXplorer is free software: you can redistribute it and/or modify
+* Pydio is free software: you can redistribute it and/or modify
 * it under the terms of the GNU Affero General Public License as published by
 * the Free Software Foundation, either version 3 of the License, or
 * (at your option) any later version.
 *
-* AjaXplorer is distributed in the hope that it will be useful,
+* Pydio is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU Affero General Public License for more details.
 *
 * You should have received a copy of the GNU Affero General Public License
-* along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+* along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
 *
-* The latest code can be found at <http://www.ajaxplorer.info/>.
+* The latest code can be found at <http://pyd.io/>.
 */
 //
-//      Updated for Ajaxplorer 4.0.2
+//      Updated for Pydio 4.0.2
 //      Italian transalation version: 4.0.2-001
 //
 //      Maintained by Michele Beltrame
@@ -28,7 +28,7 @@
 //
 //      Previous maintainers:
 //
-//          Updates for AjaXplorer 2.5.5 by
+//          Updates for Pydio 2.5.5 by
 //          Davide Cavalca <davide at cavalca dot name>
 //
 //          Original translation by Luca Zorzi
@@ -208,9 +208,9 @@ $mess=array(
 "164"=> "Log out",
 "165"=> "Impostazioni",
 "166"=> "Informazioni",
-"167"=> "Informazioni su AjaXplorer",
-"168" => "Accedi a AjaXplorer",
-"169" => "Esci da AjaXplorer",
+"167"=> "Informazioni su Pydio",
+"168" => "Accedi a Pydio",
+"169" => "Esci da Pydio",
 "170" => "Cartella corrente",
 "parent_access_key" => "u",
 "refresh_access_key" => "A",
@@ -433,8 +433,8 @@ $mess=array(
 "366" => "Questo utente non ha nessun repository attivo.",
 "367" => "Non sei autorizzato a caricare questo tipo di file. Sei pregato di scegliere tra le seguenti estensioni : ",
 "368" => "Selezione estratta con successo dall'archivio %s alla cartella %s",
-"369" => "Link AjaXplorer",
-"370" => "AjaXplorer download pubblico",
+"369" => "Link Pydio",
+"370" => "Pydio download pubblico",
 "371" => "&Egrave; richiesta una password per questo download",
 "372" => "Repository corrente",
 "373" => "Destinazione",
@@ -453,7 +453,7 @@ $mess=array(
 "389" => "Per favore leggi il codice qui sotto :",
 "390" => "Codice",
 "391" => "Nessun Repository",
-"392" => "Attenzione, la versione di AjaXplorer &egrave; cambiata (ora %s), per favore pulisci la cache del tuo browser e aggiorna la pagina per essere sicuro che tutto funzioni correttamente!",
+"392" => "Attenzione, la versione di Pydio &egrave; cambiata (ora %s), per favore pulisci la cache del tuo browser e aggiorna la pagina per essere sicuro che tutto funzioni correttamente!",
 "393" => "Attenzione, la lunghezza dei nomi deve essere inferiore a %s, il nome del file verrà troncato!",
 "394" => "Purtroppo la condivisione della cartella non è momentaneamente possibile con il driver di autorizzazione attuale (utenti non modificabili). La condivisione file è comunque ancora possibile.",
 "395" => "L'elemento rilasciato sembra essere una cartella e le cartelle non possono essere caricate sul server! Si conferma il caricamento?",
@@ -465,7 +465,7 @@ $mess=array(
 "401" => "È possibile scaricare e installare il software che segue per assemblare i pezzi copiati sul computer: ",
 "402" => "http://www.hjsplit.org/",
 "403" => "Preferenze WebDAV",
-"404" => "Puoi utilizzare il protocollo WebDAV per montare i tuoi repository AjaXplorer come 'dischi di rete' su vari client, inclusi Windows, Mac, iPhone, etc.",
+"404" => "Puoi utilizzare il protocollo WebDAV per montare i tuoi repository Pydio come 'dischi di rete' su vari client, inclusi Windows, Mac, iPhone, etc.",
 "405" => "Utilizza le seguenti URLs per accedere ai tuoi repository, con lo username e password che hai inserito. Attenzione: ciò non funzionerà finché non imposti questa caratteristicha come 'attiva' ed inserisci la tuo password.",
 "406" => "Attiva le condivisioni WebDAV",
 "407" => "Inserisci la tua password se è la prima volta che attivi le condivisioni WebDAV, oppure se vuoi re-inserire una nuova password :",
@@ -479,32 +479,111 @@ $mess=array(
 "415" => "Nascondi/visualizza pannello di sinistra",
 "416" => "Pannello Sx",
 "leftpane_accesskey" => "L",
-"417" => "Add repository ...",
-"418" => "Create your own repository",
-"419" => "Loading templates...",
-"420" => "Templates",
-"421" => "New %s",
-"422" => "Please fill the required parameters. Fly over the field titles with your mouse to have more information.",
-"423" => "Delete repository",
-"424" => "Are you sure you want to delete this repository? The operation is irreversible.",
-"425" => "The repository is now created, it is added to your repository list, if you want to remove it, make sure to switch to another repository, then click on the red cross beside the repository name.",
-"426" => "There was an error while creating the repository",
-"427" => "There was an error while deleting the repository",
-"428" => "The repository was successfully deleted",
-"429" => "This is how the repository will appear in your list.",
-"430" => "Default Files",
-"431" => "Sample Template",
-"432" => "My Files",
-"433" => "ready",
-"434" => "sending",
-"435" => "done",
-"436" => "error",
-"437" => "Ooops, it seems that your security token has expired! Please %s by hitting refresh or F5 in your browser!",
-"438" => "reload the page",
-"439" => "Main Options",
-"440" => "Yes",
+"417" => "Aggiungi repository ...",
+"418" => "Crea il tuo repository",
+"419" => "Caricando i template...",
+"420" => "Template",
+"421" => "Nuovo %s",
+"422" => "Per favore, compila i parametri richiesti. Passa sopra i titoli dei campi con il mouse per avere maggiori informazioni.",
+"423" => "Cancella repository",
+"424" => "Sei sicuro di voler cancellare questo repository? L'operazione è irreversibile",
+"425" => "Il repository è stato creato ed aggiunto al tuo elenco dei repository, se vuoi rimuoverlo, prima passa ad un altro repository, poi clicca sulla croce rossa vicino al nome del repository.",
+"426" => "C'è stato un errore nella creazione del repository",
+"427" => "C'è stato un errore nella cancellazione del repository",
+"428" => "Il repository è stato cancellato con successo",
+"429" => "Questo è come apparirà il repository nel tuo elenco.",
+"430" => "File di Default",
+"431" => "Template d'Esempio",
+"432" => "Miei File",
+"433" => "pronto",
+"434" => "inviando",
+"435" => "fatto",
+"436" => "errore",
+"437" => "Ooops, sembra che il tuo token di sicurezza sia scaduto! Per favore %s premendo aggiorna o F5 nel tuo browser!",
+"438" => "ricarica la pagina",
+"439" => "Opzioni Principali",
+"440" => "Si",
 "441" => "No",
-"442" => "Presentation",
+"442" => "Mio Account",
+"443" => "Aggiorna le tue informazioni personali",
+"444" => "Per favore aggiorna la password, altrimenti non sarai in grado di autenticarti.",
+"445" => "Adesso verrai disconnesso, ti preghiamo di riautenticarti con la tua nuova password, grazie!",
+"446" => "Presentazione",
+"447" => "Mio gruppo",
+"448" => "crea utente",
+"449" => "Creando %s, scegli una password",
+"450" => "Ordina per ...",
+"451" => "Ordina miniature per ...",
+"452" => "Dimensioni delle miniature",
+"453" => "Imposta le dimensioni delle miniature",
+"454" => "Scegli i file dal tuo computer",
+"455" => "Miei Workspace",
+"456" => "Altro",
+"457" => "aggiorna",
+"458" => "rimuovi",
+"459" => "Cartella principale",
+"460" => "Dettagli",
+"461" => "Passa alla visuale dettagliata",
+"detail_access_key" => "D",
+"date_relative_date" => "il DATE",
+"date_relative_time" => "TIME",
+"date_relative_date_format" => "Y/m/d",
+"date_relative_time_format" => "H:i",
+"date_relative_today" => "oggi alle TIME",
+"date_relative_yesterday" => "ieri alle TIME",
+"date_relative_tomorrow" => "domani alle TIME",
+"date_relative_days_ago" => "%s giorni fa",
+"date_relative_days_ahead" => "fra %s giorni",
+"462" => "Anteprima",
+"preview_access_key" => "e",
+"463" => "Scarica tutto",
+"464" => "Scarica in una volta tutto il contenuto del workspace (compresso)",
+"465" => "Mostra URL alternativi (monta separatamente i workspace)",
+"466" => "Caricamento...",
+"467" => "Tutti gli elementi condivisi",
+"468" => "My Workspaces",
+"469" => "Shared with me",
+"470" => "Created %date",
+"471" => "Created by %user %date",
+"472" => "Shared by %user",
+"473" => "Shared by %user %date",
+"474" => "No description available",
+"475" => "Files shared amongst all users",
+"476" => "Your personal workspace",
+"477" => "Select a file or folder to see its details here",
+"478" => "No results found",
+"479" => "Forgot your password?",
+"480" => "Browse all folders of the current workspace.",
+"481" => "All your shared files and folders",
+"482" => "Quick access to your bookmarked items",
+"483" => "You are not authorized to create more users!",
+"484" => "Create user",
+"485" => "Create a shared user",
+"486" => "Advanced",
+"487" => "Basic",
+"488" => "Advanced Filter",
+"489" => "Metadata",
+"490" => "Date range",
+"491" => "After",
+"492" => "until",
+"493" => "Today",
+"494" => "Yesterday",
+"495" => "Last week",
+"496" => "Last month",
+"497" => "Last year",
+"498" => "Document Property",
+"499" => "File",
+"500" => "extension",
+"501" => "or",
+"502" => "Folder",
+"503" => "Size",
+"504" => "1k,1M,1G",
+"505" => "to",
+"506" => "Application parameters (users, workspaces, configurations)",
+"507" => "Welcome on %s",
+"508" => "I just created an account for you on %s. To connect, please click on the following link %link and use these credentials:  <br><br> Login: %user <br><br> Password: %pass",
+"509" => "Save the current users list as a personal team",
+"510" => "Please enter a team label",
+"511" => "My %s",
 /* END SENTENCE */
 );
-?>

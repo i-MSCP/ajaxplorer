@@ -1,35 +1,47 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  * Description : Class for simple XHR multiple upload, HTML5 only
  */
 Class.create("XHRUploader", {
 	
 	_globalConfigs:null,
+    listTarget : null,
+    mainForm: null,
+    id : null,
+    rowAsProgressBar: false,
+    dataModel: null,
+    contextNode: null,
+    currentBackgroundPanel: null,
 
 	initialize : function( formObject, mask ){
+
+        window.UploaderInstanceRunning = true;
 
 		formObject = $(formObject);
 		// Main form
 		this.mainForm = formObject;
 		
 		// Where to write the list
-		this.listTarget = formObject.select('div.uploadFilesList')[0];
+		this.listTarget = formObject.down('div.uploadFilesList');
+
+        this.rowAsProgressBar = this.listTarget.hasClassName('rowAsProgressBar');
+
 		// How many elements?
 		this.count = 0;
 		// Current index
@@ -48,129 +60,233 @@ Class.create("XHRUploader", {
 			this.mask = $A(mask.split(","));
             this.maskLabel = this._globalConfigs.get("ALLOWED_EXTENSIONS_READABLE");
 		}
-		this.crtContext = ajaxplorer.getUserSelection();
+		this.dataModel = ajaxplorer.getContextHolder();
+        this.contextNode = this.dataModel.getContextNode();
+
+        if(window.UploaderDroppedTarget && window.UploaderDroppedTarget.ajxpNode){
+            //console.log(this.contextNode);
+            this.contextNode = window.UploaderDroppedTarget.ajxpNode;
+        }
 
 		this.clearList();
 		
 		// INITIALIZE GUI, IF NOT ALREADY!
-		this.sendButton = formObject.select('div[id="uploadSendButton"]')[0];
+		this.sendButton = formObject.down('#uploadSendButton');
         this.sendButton.addClassName("disabled");
+        modal.setCloseValidation(function(){
+            if(this.hasLoadingItem()){
+                var panels = $$('div.backgroundPanel');
+                var panel;
+                if(!panels.length){
+                    panel = new Element('div', {className:'backgroundPanel'});
+                    ajxpBootstrap.parameters.get("MAIN_ELEMENT").insert(panel);
+                }else{
+                    panel = panels[0];
+                }
+                this.attachToBackgroundPanel(panel);
+            }else{
+                window.UploaderInstanceRunning = false;
+            }
+            return true;
+        }.bind(this));
+
 		if(this.sendButton.observerSet){
-			this.totalProgressBar = this.mainForm.PROGRESSBAR;
+            if(this.mainForm.PROGRESSBAR){
+                this.totalProgressBar = this.mainForm.PROGRESSBAR;
+            }
 			this.totalStrings = $('totalStrings');
 			this.uploadedString = $('uploadedString');			
 			this.optionPane = this.mainForm.down('#uploader_options_pane');
 			this.optionPane.loadData();
 			this.updateTotalData();
-			if(window.UploaderDroppedFiles){
-				var files = window.UploaderDroppedFiles;
-				for(var i=0;i<files.length;i++){
-					this.addListRow(files[i]);
-				}
-				if(this.optionPane.autoSendCheck.checked){
-					this.submit();
-				}
-				window.UploaderDroppedFiles = null;
-			}
-			return;		
-		}
-		
-		var optionsButton = formObject.select('div[id="uploadOptionsButton"]')[0];
-		var closeButton = formObject.select('div[id="uploadCloseButton"]')[0];
-		this.sendButton.observerSet = true;
-		this.sendButton.observe("click", function(){
-            if(!this.hasClassName("disabled")){
-			    ajaxplorer.actionBar.multi_selector.submit();
-            }
-		}.bind(this.sendButton) );
-		optionsButton.observe("click", function(){
-			var optionPane = this.mainForm.down('#uploader_options_pane');
-			var closeSpan = optionsButton.down('span');
-			if(optionPane.visible()) {
-				optionPane.hidePane();
-				closeSpan.hide();
-			}
-			else {
-				optionPane.showPane();
-				closeSpan.show();
-			}
-		}.bind(this));
-		closeButton.observe("click", function(){
-            if(this.hasLoadingItem()) return;
-			hideLightBox();
-		}.bind(this));
+		}else{
+            this.initGUI();
+        }
 
-		this.initElement(formObject.select('.dialogFocus')[0]);		
-		
-		var dropzone = this.listTarget;
-		dropzone.addClassName('droparea');
-		dropzone.addEventListener("dragover", function(event) {
-				event.preventDefault();
-		}, true);
-		dropzone.addEventListener("dragenter", function(){
-			dropzone.addClassName("dropareaHover");
-		}, true);
-		dropzone.addEventListener("dragleave", function(){
-			dropzone.removeClassName("dropareaHover");
-		}, true);
-		
-		dropzone.addEventListener("drop", function(event) {
-			event.preventDefault();
-			var files = event.dataTransfer.files;
-			for(var i=0;i<files.length;i++){
-				this.addListRow(files[i]);
-			}
-			if(this.optionPane.autoSendCheck.checked){
-				this.submit();
-			}
-		}.bind(this) , true);
-		
-		
-		this.mainForm.down('#uploadFilesListContainer').setAttribute("rowspan", "1");
-		var totalDiv = new Element('div', {id:'total_files_list'});
-		this.mainForm.down('#optClosButtonsContainer').insert({after:new Element('td', {style:'vertical-align:bottom'}).update(totalDiv)});
-		totalDiv.insert('<img src="'+ajxpResourcesFolder+'/images/actions/22/trashcan_empty.png" class="fakeUploadButton fakeOptionButton" id="clear_list_button"\
-			width="22" height="22" style="float:right;margin-top:3px;padding:4px;width:22px;" title="'+MessageHash[216]+'"/>\
-			<span id="totalStrings">'+MessageHash[258]+' : 0 '+MessageHash[259]+' : 0Kb</span>\
-			<div style="padding-top:3px;">\
-			<div id="pgBar_total" style="width:154px; height: 4px;border: 1px solid #ccc;float:left;margin-top: 6px;"></div>\
-			<span style="float:left;margin-left:10px;" id="uploadedString">'+MessageHash[256]+' : 0%</span>\
-			</div>');
-		var options = {
-			animate		: false,									// Animate the progress? - default: true
-			showText	: false,									// show text with percentage in next to the progressbar? - default : true
-			width		: 154,										// Width of the progressbar - don't forget to adjust your image too!!!
-			boxImage	: ajxpResourcesFolder+'/images/progress_box.gif',			// boxImage : image around the progress bar
-			barImage	: ajxpResourcesFolder+'/images/progress_bar.gif',	// Image to use in the progressbar. Can be an array of images too.
-			height		: 4										// Height of the progressbar - don't forget to adjust your image too!!!
-		};
-		$('clear_list_button').observe("click", function(e){
-			ajaxplorer.actionBar.multi_selector.clearList();
-			ajaxplorer.actionBar.multi_selector.updateTotalData();			
-		});
-		this.optionPane = this.createOptionsPane();
-		this.optionPane.loadData();
-		
-		this.totalProgressBar = new JS_BRAMUS.jsProgressBar($('pgBar_total'), 0, options);
-		this.mainForm.PROGRESSBAR = this.totalProgressBar;
-		this.totalStrings = $('totalStrings');
-		this.uploadedString = $('uploadedString');
-		
-		if(window.UploaderDroppedFiles){
-			var files = window.UploaderDroppedFiles;
-			for(var i=0;i<files.length;i++){
-				this.addListRow(files[i]);
-			}
-			if(this.optionPane.autoSendCheck.checked){
-				this.submit();
-			}
-			window.UploaderDroppedFiles = null;
-		}
-		
+        if(window.UploaderDroppedFiles || window.UploaderDroppedItems){
+             this.handleDropEventResults(window.UploaderDroppedItems, window.UploaderDroppedFiles);
+             window.setTimeout(function(){
+                 window.UploaderDroppedItems = window.UploaderDroppedFiles = null;
+             }, 2000);
+        }
+
 	},
-	
+
+    attachToBackgroundPanel: function(panel){
+        panel.show();
+        panel.update('Upload running...');
+        this.currentBackgroundPanel = panel;
+    },
+
+    handleDropEventResults: function(items, files){
+
+        var isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+        if ( !isMac && items && items.length && (items[0].getAsEntry || items[0].webkitGetAsEntry)) {
+            var callback = this.addListRow.bind(this);
+            var error = (console ? console.log : function(err){window.alert(err); }) ;
+            var length = items.length;
+            for (var i = 0; i < length; i++) {
+                var entry;
+                if(items[0].getAsEntry){
+                    entry = items[i].getAsEntry();
+                }else{
+                    entry = items[i].webkitGetAsEntry();
+                }
+                if (entry.isFile) {
+                    entry.file(function(File) {
+                        if(File.size == 0) return;
+                        callback(File);
+                    }, error );
+                } else if (entry.isDirectory) {
+                    this.recurseDirectory(entry, function(fileEntry){
+                        var relativePath = fileEntry.fullPath;
+                        fileEntry.file(function(File) {
+                            if(File.size == 0) return;
+                            callback(File, relativePath);
+                        }, error );
+                    }, error );
+                }
+            }
+        }else{
+            for(var j=0;j<files.length;j++){
+                this.addListRow(files[j]);
+            }
+        }
+
+        if(this.optionPane.autoSendCheck.checked){
+             window.setTimeout(this.submit.bind(this), 1000);
+        }
+    },
+
+    recurseDirectory: function(item, completeHandler, errorHandler) {
+
+        var recurseDir = this.recurseDirectory.bind(this);
+        var dirReader = item.createReader();
+        var entries = [];
+
+        var toArray = function(list){
+            return Array.prototype.slice.call(list || [], 0);
+        }
+
+        // Call the reader.readEntries() until no more results are returned.
+        var readEntries = function() {
+            dirReader.readEntries (function(results) {
+                if (!results.length) {
+
+                    $A(entries).each(function(e){
+                        if(e.isDirectory){
+                            recurseDir(e, completeHandler, errorHandler);
+                        }else{
+                            completeHandler(e);
+                        }
+                    });
+                } else {
+                    entries = entries.concat(toArray(results));
+                    readEntries();
+                }
+            }, errorHandler);
+        };
+
+        readEntries(); // Start reading dirs.
+
+    },
+
+    initGUI: function(){
+        var optionsButton = this.mainForm.down('#uploadOptionsButton');
+        var closeButton = this.mainForm.down('#uploadCloseButton');
+        this.sendButton.observe("click", function(){
+            if(!this.hasClassName("disabled")){
+                ajaxplorer.actionBar.multi_selector.submit();
+            }
+        }.bind(this.sendButton) );
+        this.sendButton.observerSet = true;
+        optionsButton.observe("click", function(){
+            var optionPane = this.mainForm.down('#uploader_options_pane');
+            var closeSpan = optionsButton.down('span');
+            if(optionPane.visible()) {
+                optionPane.hidePane();
+                closeSpan.hide();
+            }
+            else {
+                optionPane.showPane();
+                closeSpan.show();
+            }
+        }.bind(this));
+        if(closeButton){
+            closeButton.observe("click", function(){
+                if(this.hasLoadingItem()) return;
+                window.UploaderInstanceRunning = false;
+                hideLightBox();
+            }.bind(this));
+        }
+
+        this.initElement();
+
+        var dropzone = this.listTarget;
+        dropzone.addClassName('droparea');
+        dropzone.addEventListener("dragover", function(event) {
+            event.preventDefault();
+        }, true);
+        dropzone.addEventListener("dragenter", function(){
+            dropzone.addClassName("dropareaHover");
+        }, true);
+        dropzone.addEventListener("dragleave", function(){
+            dropzone.removeClassName("dropareaHover");
+        }, true);
+
+        dropzone.addEventListener("drop", function(event) {
+            event.preventDefault();
+            var items = event.dataTransfer.items || [];
+            var files = event.dataTransfer.files;
+            this.handleDropEventResults(items, files);
+        }.bind(this) , true);
+
+
+        if(this.mainForm.down('#uploadFilesListContainer')) {
+            this.mainForm.down('#uploadFilesListContainer').setAttribute("rowspan", "1");
+        }
+        if(this.mainForm.down('#optClosButtonsContainer')){
+            var totalDiv = new Element('div', {id:'total_files_list'});
+            this.mainForm.down('#optClosButtonsContainer').insert({after:new Element('td', {style:'vertical-align:bottom'}).update(totalDiv)});
+            totalDiv.insert('<img src="'+ajxpResourcesFolder+'/images/actions/22/trashcan_empty.png" class="fakeUploadButton fakeOptionButton" id="clear_list_button"\
+            width="22" height="22" style="float:right;margin-top:3px;padding:4px;width:22px;" title="'+MessageHash[216]+'"/>\
+            <span id="totalStrings">'+MessageHash[258]+' : 0 '+MessageHash[259]+' : 0Kb</span>\
+            <div style="padding-top:3px;">\
+            <div id="pgBar_total" style="width:154px; height: 4px;border: 1px solid #ccc;float:left;margin-top: 6px;"></div>\
+            <span style="float:left;margin-left:10px;" id="uploadedString">'+MessageHash[256]+' : 0%</span>\
+            </div>');
+        }
+        var options = {
+            animate		: false,									// Animate the progress? - default: true
+            showText	: false,									// show text with percentage in next to the progressbar? - default : true
+            width		: 154,										// Width of the progressbar - don't forget to adjust your image too!!!
+            boxImage	: ajxpResourcesFolder+'/images/progress_box.gif',			// boxImage : image around the progress bar
+            barImage	: ajxpResourcesFolder+'/images/progress_bar.gif',	// Image to use in the progressbar. Can be an array of images too.
+            height		: 4										// Height of the progressbar - don't forget to adjust your image too!!!
+        };
+        this.mainForm.down('#clear_list_button').observe("click", function(e){
+            ajaxplorer.actionBar.multi_selector.clearList();
+            ajaxplorer.actionBar.multi_selector.updateTotalData();
+        });
+        this.optionPane = this.createOptionsPane();
+        this.optionPane.loadData();
+
+        if(this.mainForm.down('#phBar_total')){
+            this.totalProgressBar = new JS_BRAMUS.jsProgressBar($('pgBar_total'), 0, options);
+            this.mainForm.PROGRESSBAR = this.totalProgressBar;
+        }
+        this.totalStrings = $('totalStrings');
+        this.uploadedString = $('uploadedString');
+
+    },
+
 	createOptionsPane : function(){
-		var optionPane = new Element('div', {id:'uploader_options_pane'});
+        var optionPane = this.mainForm.down("#uploader_options_pane");
+        var totalPane = this.mainForm.down('#total_files_list');
+        if(!optionPane){
+            optionPane = new Element('div', {id:'uploader_options_pane'});
+            totalPane.insert({after:optionPane});
+        }
 		optionPane.update('<div id="uploader_options_strings"></div>');
 		optionPane.insert('<div id="uploader_options_checks">\
 			<b>'+MessageHash[339]+'</b> <input type="radio" name="uploader_existing" id="uploader_existing_overwrite" value="overwrite"> '+MessageHash[263]+' \
@@ -184,8 +300,6 @@ Class.create("XHRUploader", {
 		optionPane.autoCloseCheck = optionPane.down('#uploader_auto_close');
 		optionPane.optionsStrings = optionPane.down('#uploader_options_strings');
 		optionPane.existingRadio = optionPane.select('input[name="uploader_existing"]');
-		var totalPane = this.mainForm.down('#total_files_list');
-		totalPane.insert({after:optionPane});
 		optionPane.showPane = function(){
 			totalPane.hide();optionPane.show();
 			modal.refreshDialogAppearance();
@@ -285,6 +399,9 @@ Class.create("XHRUploader", {
 			for(var i=0;i<files.length;i++){
 				this.addListRow(files[i]);
 			}
+            if(this.optionPane.autoSendCheck.checked){
+                this.submit();
+            }
 			this.clearElement();
 		}.bind(this) );
 	},
@@ -305,16 +422,37 @@ Class.create("XHRUploader", {
         if(this.sendButton) this.sendButton.addClassName("disabled");
 	},
 
+    /*
+    pathToIndent: function( item,  itemPath ){
+        var length = itemPath.split("/").length - 1;
+        if(!length) return;
+        for(var i=0;i<length;i++){
+            item.insert({top: '<span class="item-indent">&nbsp;</span>'});
+        }
+    },
+
+    addFolderRow: function ( folderPath ){
+
+        var row = new Element('div').update('<span class="icon-folder-close"></span> ' + getBaseName(folderPath));
+        this.pathToIndent(row, folderPath);
+        row.FOLDER = true;
+        this.listTarget.insert(row);
+
+    },
+    */
+
 	/**
 	 * Add a new row to the list of files
 	 */
-	addListRow : function( file ){
+	addListRow : function( file , relativePath){
+
+        this.listTarget.removeClassName('dropareaHover');
 
 		if(file.size==0 && file.type == ""){
 			// FOLDER!
 			alert(MessageHash[336]);
 			return;
-		}else if(Prototype.Browser.WebKit && !getBaseName(file.name).indexOf(".")){
+		}else if(!file.size && Prototype.Browser.WebKit && getBaseName(file.name).indexOf(".") !== 0){
 			var res = confirm(MessageHash[395]);
 			if(!res){
 				return;
@@ -358,6 +496,7 @@ Class.create("XHRUploader", {
 			style : '-moz-border-radius:3px;border-radius:3px;float:left;margin:1px 7px 2px 0px;padding:3px;width:16px;background-position:center top;',
 			title : MessageHash[257]
 		});
+        delButton = new Element("span", {className:"icon-remove-sign"}).update(delButton);
 		delButton.observe("click", function(e){
 			if(item.xhr){
 				try{
@@ -371,11 +510,20 @@ Class.create("XHRUploader", {
 		// Add button & text
 		item.insert( delButton );
 		item.insert( label );
+        if(relativePath){
+            item.relativePath = relativePath;
+            item.insert( '<span class="item_relative_path">'+getRepName(relativePath)+'</span>' );
+        }
+
 		// Add it to the list
 		this.listTarget.insert( item );
 		
 		var id = 'pgBar_' + (this.listTarget.childNodes.length + 1);
-		this.createProgressBar(item, id);
+        if(this.rowAsProgressBar){
+            this.createInnerProgressBar(item, id);
+        }else{
+            this.createProgressBar(item, id);
+        }
 		item.file = file;
 		item.updateStatus('new');
 		this.updateTotalData();
@@ -421,6 +569,44 @@ Class.create("XHRUploader", {
 			}
 			this.percentValue = percentage;
 		}.bind(item);
+        var oThis = this;
+		item.updateStatus = function(status){
+			this.status = status;
+            var messageIds = {
+                "new" : 433,
+                "loading":434,
+                "loaded":435,
+                "error":436
+            };
+            try{
+                status = window.MessageHash[messageIds[status]];
+            }catch(e){};
+            if(oThis.currentBackgroundPanel){
+                oThis.currentBackgroundPanel.update(item.file.name + ' ['+status+']');
+            }
+            this.statusText.innerHTML = "["+status+"]";
+		}.bind(item);
+	},
+	
+	createInnerProgressBar : function(item, id){
+		var statusText = new Element('span', {className:"statusText"});
+		var percentText = new Element('span', {className:"percentText"});
+		item.insert(statusText);
+		item.insert(percentText);
+		item.statusText = statusText;
+		item.percentText = percentText;
+		item.updateProgress = function(computableEvent, percentage){
+			if(percentage == null){
+				percentage = Math.round((computableEvent.loaded * 100) / computableEvent.total);
+	        	this.bytesLoaded = computableEvent.loaded;
+			}
+			if(!this.percentValue || this.percentValue != percentage){
+				this.percentText.innerHTML = percentage + '%';
+                this.setStyle({backgroundSize:percentage+'% 100%'});
+			}
+			this.percentValue = percentage;
+		}.bind(item);
+        var oThis = this;
 		item.updateStatus = function(status){
 			this.status = status;
             var messageIds = {
@@ -433,9 +619,17 @@ Class.create("XHRUploader", {
                 status = window.MessageHash[messageIds[status]];
             }catch(e){};
 			this.statusText.innerHTML = "["+status+"]";
+            this.statusText.removeClassName('new');
+            this.statusText.removeClassName('loading');
+            this.statusText.removeClassName('loaded');
+            this.statusText.removeClassName('error');
+            this.statusText.addClassName(this.status);
+            if(oThis.currentBackgroundPanel){
+                oThis.currentBackgroundPanel.update(item.file.name + ' ['+status+']');
+            }
 		}.bind(item);
 	},
-	
+
 	updateTotalData : function(){
 		var count = 0;
 		var size = 0;
@@ -460,11 +654,13 @@ Class.create("XHRUploader", {
             if(this.sendButton) this.sendButton.addClassName("disabled");
         }
 		if(size){
-			var percentage = Math.round(100*uploaded/size);
+			percentage = Math.round(100*uploaded/size);
 		}
-		this.totalProgressBar.setPercentage(percentage, true);
-		this.totalStrings.update(MessageHash[258]+' ' + count + ' '+MessageHash[259]+' ' +roundSize(size, 'b'));
-		this.uploadedString.update(MessageHash[256]+' : ' + percentage + '%');
+        if(this.totalProgressBar){
+            this.totalProgressBar.setPercentage(percentage, true);
+        }
+		if(this.totalStrings) this.totalStrings.update(MessageHash[258]+' ' + count + ' '+MessageHash[259]+' ' +roundSize(size, 'b'));
+		if(this.uploadedString) this.uploadedString.update(MessageHash[256]+' : ' + percentage + '%');
 		
 	},
 	
@@ -474,14 +670,20 @@ Class.create("XHRUploader", {
 	
 	submitNext : function(){
 
-		if(item = this.getNextItem()){
+        var item;
+        if(item = this.getNextItem()){
             document.fire("ajaxplorer:longtask_starting");
 			this.sendFileMultipart(item);
 		}else{
             if(this.hasLoadingItem()) return;
-			ajaxplorer.fireContextRefresh();
-			if(this.optionPane.autoCloseCheck.checked){
-				hideLightBox(true);
+			//ajaxplorer.fireContextRefresh();
+			if(this.optionPane.autoCloseCheck.checked || this.currentBackgroundPanel){
+                window.UploaderInstanceRunning = false;
+                if(this.currentBackgroundPanel){
+                    this.currentBackgroundPanel.hide();
+                }else{
+                    hideLightBox(true);
+                }
 			}
             document.fire("ajaxplorer:longtask_finished");
 		}
@@ -506,14 +708,17 @@ Class.create("XHRUploader", {
         return false;
     },
 	
-	initializeXHR : function(item, queryStringParam){
+	initializeXHR : function(item, queryStringParam, forceDir){
 
-		var xhr = new XMLHttpRequest(); 	  
-		var uri = ajxpBootstrap.parameters.get('ajxpServerAccess')+"&get_action=upload&xhr_uploader=true&dir="+encodeURIComponent(this.crtContext.getContextNode().getPath());
+        var currentDir = this.contextNode.getPath();
+        if(forceDir) currentDir = forceDir;
+
+		var xhr = new XMLHttpRequest();
+		var uri = ajxpBootstrap.parameters.get('ajxpServerAccess')+"&get_action=upload&xhr_uploader=true&dir="+encodeURIComponent(currentDir);
 		if(queryStringParam){
 			uri += '&' + queryStringParam;
 		}
-		
+
 		var upload = xhr.upload;
 		upload.addEventListener("progress", function(e){
 			if (!e.lengthComputable) return;
@@ -525,7 +730,10 @@ Class.create("XHRUploader", {
 				item.updateProgress(null, 100);
 				item.updateStatus('loaded');
 
-				if (xhr.responseText && xhr.responseText != 'OK') {
+                if (xhr.responseXML){
+                    var result = ajaxplorer.actionBar.parseXmlMessage(xhr.responseXML);
+                    if(!result) item.updateStatus("error");
+                }else if (xhr.responseText && xhr.responseText != 'OK') {
 					alert(xhr.responseText); // display response.
 					item.updateStatus('error');
 				}
@@ -538,14 +746,53 @@ Class.create("XHRUploader", {
 			item.updateStatus('error');
         };		
 
-		xhr.open("POST", uri, true);   
+		xhr.open("POST", uri, true);
+        try {if(Prototype.Browser.IE10) xhr.responseType =  'msxml-document'; } catch(e){}
         return xhr;
 		
 	},
 	
 	sendFileMultipart : function(item){
     	var auto_rename = false;
-		if(this.crtContext.fileNameExists(item.file.name))
+
+        var currentDir = this.contextNode.getPath();
+        if(item.relativePath){
+            if(!this.createdDirs) {
+                this.createdDirs = $A();
+            }
+            // Create the folder directly!
+            var createConn = new Connexion();
+            var dirPath = getRepName(item.relativePath);
+            var fullPath = currentDir+dirPath;
+            if(this.createdDirs.indexOf(dirPath) == -1){
+                item.down('span.item_relative_path').update('Creating '+dirPath + '...');
+                createConn.setParameters(new Hash({
+                    get_action: 'mkdir',
+                    dir: getRepName(fullPath),
+                    ignore_exists:true,
+                    dirname:getBaseName(fullPath)
+                }));
+                createConn.sendSync();
+                item.down('span.item_relative_path').update(dirPath);
+                this.createdDirs.push(dirPath);
+            }
+            currentDir = fullPath;
+        }
+
+        var parentNode = new AjxpNode(currentDir);
+        var newNode = new AjxpNode(currentDir+"/"+getBaseName(item.file.name));
+        if(item.file.size){
+            newNode.getMetadata().set("filesize", item.file.size);
+        }
+        try{
+            this.dataModel.applyCheckHook(newNode);
+        }catch(e){
+            item.updateStatus('error');
+            this.submitNext();
+            return;
+        }
+
+        if(this.dataModel.fileNameExists(item.file.name, false, parentNode))
 		{
 			var behaviour = this.optionPane.getExistingBehaviour();
 			if(behaviour == 'rename'){
@@ -553,6 +800,7 @@ Class.create("XHRUploader", {
 			}else if(behaviour == 'alert'){
 				if(!confirm(MessageHash[124])){
 					item.remove();
+                    item.submitNext();
 					return;
 				}
 			}else{
@@ -560,7 +808,7 @@ Class.create("XHRUploader", {
 			}
 		}		
 		
-		var xhr = this.initializeXHR(item, (auto_rename?"auto_rename=true":""));
+		var xhr = this.initializeXHR(item, (auto_rename?"auto_rename=true":""), currentDir);
 		var file = item.file;
         item.updateProgress(null, 0);
 		item.updateStatus('loading');		
@@ -581,7 +829,7 @@ Class.create("XHRUploader", {
 	
 	sendFileUsingFormData : function(xhr, file){
         var formData = new FormData();
-        formData.append("userfile_0", file);
+        formData.append("userfile_0", file, file.name);
         xhr.send(formData);
 	},	
 
@@ -603,7 +851,7 @@ Class.create("XHRUploader", {
 		item.updateStatus('loading');
 		
     	var auto_rename = false;
-		if(this.crtContext.fileNameExists(item.file.name))
+		if(this.dataModel.fileNameExists(item.file.name))
 		{
 			var behaviour = this.optionPane.getExistingBehaviour();
 			if(behaviour == 'rename'){
@@ -618,7 +866,7 @@ Class.create("XHRUploader", {
 			}
 		}
 
-        var xhr = new XMLHttpRequest;
+        var xhr = new XMLHttpRequest();
 		var upload = xhr.upload;
 		upload.addEventListener("progress", function(e){
 			if (e.lengthComputable) {  
@@ -652,12 +900,13 @@ Class.create("XHRUploader", {
         	item.statusText.update('[error]');        	
         };
         
-        var url = ajxpBootstrap.parameters.get('ajxpServerAccess')+"&get_action=upload&xhr_uploader=true&input_stream=true&dir="+encodeURIComponent(this.crtContext.getContextNode().getPath());
+        var url = ajxpBootstrap.parameters.get('ajxpServerAccess')+"&get_action=upload&xhr_uploader=true&input_stream=true&dir="+encodeURIComponent(this.contextNode.getPath());
         if(auto_rename){
         	url += '&auto_rename=true';
         }
         
         xhr.open("post", url, true);
+        try {if(Prototype.Browser.IE10) xhr.responseType =  'msxml-document'; } catch(e){}
         xhr.setRequestHeader("If-Modified-Since", "Mon, 26 Jul 1997 05:00:00 GMT");
         xhr.setRequestHeader("Cache-Control", "no-cache");
         xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
@@ -781,7 +1030,7 @@ Class.create("XHRUploader", {
 		conn.setParameters({
 			"get_action" : "upload_chunks_unify",
 			"file_name" : fileName,
-			"dir" : this.crtContext.getContextNode().getPath()
+			"dir" : this.contextNode.getPath()
 		});
 		for(var i=0;i<lastIndex;i++){
 			conn.addParameter("chunk_"+i, fileName+"_part_"+i);

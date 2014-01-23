@@ -12,6 +12,13 @@
             </xs:sequence>
         </xs:complexType>
     </xs:element>
+    <xs:element name="ajxp_mixins">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:any/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
     <xs:element name="actions">
         <xs:complexType>
             <xs:sequence>
@@ -38,6 +45,7 @@
             <xs:attribute name="fileDefault" type="xs:boolean"/>
             <xs:attribute name="name" use="required" type="xs:NCName"/>
             <xs:attribute name="skipSecureToken" type="xs:boolean"/>
+            <xs:attribute name="contentTypedProvider" type="xs:boolean"/>
         </xs:complexType>
     </xs:element>
     <xs:element name="gui">
@@ -50,6 +58,7 @@
             <xs:attribute name="hasAccessKey" type="xs:boolean"/>
             <xs:attribute name="specialAccessKey" type="xs:NCName"/>
             <xs:attribute name="src" use="required"/>
+            <xs:attribute name="iconClass" use="optional"/>
             <xs:attribute name="text" use="required" type="xs:NMTOKEN"/>
             <xs:attribute name="title" use="required" type="xs:NMTOKEN"/>
         </xs:complexType>
@@ -57,7 +66,7 @@
     <xs:element name="context">
         <xs:complexType mixed="true">
             <xs:attribute name="actionBar" type="xs:boolean"/>
-            <xs:attribute name="actionBarGroup" type="xs:NCName"/>
+            <xs:attribute name="actionBarGroup" type="xs:string"/>
             <xs:attribute name="ajxpWidgets" type="xs:NMTOKEN"/>
             <xs:attribute name="behaviour" type="xs:NCName"/>
             <xs:attribute name="contextMenu" type="xs:boolean"/>
@@ -71,12 +80,14 @@
     <xs:element name="selectionContext">
         <xs:complexType mixed="true">
             <xs:attribute name="allowedMimes"/>
+            <xs:attribute name="evalMetadata"/>
             <xs:attribute name="behaviour" type="xs:NCName"/>
             <xs:attribute name="dir" use="required" type="xs:boolean"/>
             <xs:attribute name="editable" type="xs:boolean"/>
             <xs:attribute name="file" use="required" type="xs:NCName"/>
             <xs:attribute name="image" type="xs:boolean"/>
             <xs:attribute name="multipleOnly" type="xs:boolean"/>
+            <xs:attribute name="enableRoot" type="xs:boolean"/>
             <xs:attribute name="recycle" use="required" type="xs:boolean"/>
             <xs:attribute name="unique" use="required" type="xs:boolean"/>
         </xs:complexType>
@@ -272,7 +283,7 @@
                             <xs:element minOccurs="0" ref="server_settings"/>
                             <xs:element minOccurs="0" ref="plugin_configs"/>
                             <xs:element minOccurs="0" ref="registry_contributions"/>
-                            <xs:element minOccurs="0" ref="clientForm"/>
+                            <xs:element minOccurs="0" maxOccurs="100" ref="clientForm"/>
                             <xs:element minOccurs="0" ref="processing"/>
                             <xs:element minOccurs="0" ref="dependencies"/>
                         </xs:choice>
@@ -280,8 +291,10 @@
                     <xs:attribute name="className" use="required" type="xs:NCName"/>
                     <xs:attribute name="formId" type="xs:NCName"/>
                     <xs:attribute name="icon" use="required"/>
+                    <xs:attribute name="iconClass" use="optional"/>
                     <xs:attribute name="mimes" use="required"/>
                     <xs:attribute name="openable" use="required" type="xs:boolean"/>
+                    <xs:attribute name="modalOnly" type="xs:boolean"/>
                     <xs:attribute name="order" type="xs:integer"/>
                     <xs:attribute name="previewProvider" type="xs:boolean"/>
                     <xs:attribute name="text" use="required" type="xs:NMTOKEN"/>
@@ -401,7 +414,7 @@
             <xs:choice>
                 <xs:any maxOccurs="unbounded" processContents="skip"/>
             </xs:choice>
-            <xs:attribute name="className" use="required" type="xs:NCName"/>
+            <xs:attribute name="className" use="required" type="xs:Name"/>
         </xs:complexType>
     </xs:element>
     <xs:element name="columns">
@@ -498,15 +511,13 @@
         <xs:complexType>
             <xs:sequence>
                 <xs:element minOccurs="0" ref="clientCallback"/>
-                <xs:element minOccurs="0" ref="clientForm"/>
+                <xs:element minOccurs="0" maxOccurs="100" ref="clientForm"/>
                 <xs:element minOccurs="0" ref="dialogOnOpen"/>
                 <xs:element minOccurs="0" ref="extensionOnInit"/>
                 <xs:element minOccurs="0" ref="clientListener"/>
                 <xs:element minOccurs="0" ref="standardFormDefinition"/>
-                <xs:choice minOccurs="0">
-                    <xs:element ref="serverCallback"/>
-                    <xs:element ref="activeCondition"/>
-                </xs:choice>
+                <xs:element minOccurs="0" ref="serverCallback"/>
+                <xs:element minOccurs="0" ref="activeCondition"/>
             </xs:sequence>
         </xs:complexType>
     </xs:element>
@@ -540,12 +551,20 @@
     <xs:element name="activeCondition" type="xs:string"/>
     <xs:element name="serverCallback">
         <xs:complexType>
+            <xs:choice maxOccurs="unbounded" minOccurs="0">
+                <xs:element ref="input_param"/>
+                <xs:element ref="output"/>
+            </xs:choice>
             <xs:attribute name="applyCondition"/>
             <xs:attribute name="capture" type="xs:boolean"/>
             <xs:attribute name="hookName" type="xs:NCName"/>
             <xs:attribute name="methodName" use="required" type="xs:NCName"/>
             <xs:attribute name="pluginId" use="optional" type="xs:NCName"/>
             <xs:attribute name="defer" type="xs:boolean"/>
+            <xs:attribute name="restParams"/>
+            <xs:attribute name="sdkMethodName"/>
+            <xs:attribute name="developerComment"/>
+            <xs:attribute name="checkParams" type="xs:boolean"/>
         </xs:complexType>
     </xs:element>
     <xs:element name="standardFormDefinition">
@@ -627,29 +646,65 @@
         <xs:complexType>
             <xs:attribute name="choices"/>
             <xs:attribute name="default"/>
+            <xs:attribute name="name" use="required" type="xs:NCName"/>
+            <xs:attribute name="type" use="required" type="xs:Name"/>
+            <xs:attribute name="label" use="required"/>
             <xs:attribute name="description" use="required"/>
             <xs:attribute name="expose" type="xs:boolean"/>
             <xs:attribute name="group"/>
             <xs:attribute name="replicationGroup"/>
-            <xs:attribute name="label" use="required"/>
             <xs:attribute name="mandatory" type="xs:boolean"/>
-            <xs:attribute name="name" use="required" type="xs:NCName"/>
-            <xs:attribute name="type" use="required" type="xs:NCName"/>
+            <xs:attribute name="scope"/>
+            <xs:attribute name="repoScope"/>
+            <xs:attribute name="editable" type="xs:boolean" use="optional"/>
+            <xs:attribute name="uploadAction" use="optional"/>
+            <xs:attribute name="loadAction" use="optional"/>
+            <xs:attribute name="defaultImage" use="optional"/>
+            <xs:attribute name="group_switch_name" use="optional"/>
+            <xs:attribute name="group_switch_value" use="optional"/>
+            <xs:attribute name="group_switch_label" use="optional"/>
         </xs:complexType>
     </xs:element>
     <xs:element name="param">
         <xs:complexType>
             <xs:attribute name="choices"/>
             <xs:attribute name="default"/>
+            <xs:attribute name="name" use="required" type="xs:NCName"/>
+            <xs:attribute name="type" use="required" type="xs:Name"/>
+            <xs:attribute name="label" use="required"/>
             <xs:attribute name="description" use="required"/>
+            <xs:attribute name="expose" type="xs:boolean"/>
             <xs:attribute name="group"/>
             <xs:attribute name="replicationGroup"/>
-            <xs:attribute name="label" use="required"/>
             <xs:attribute name="mandatory" type="xs:boolean"/>
-            <xs:attribute name="name" use="required" type="xs:NCName"/>
             <xs:attribute name="no_templates" type="xs:boolean"/>
             <xs:attribute name="templates_only" type="xs:boolean"/>
-            <xs:attribute name="type" use="required" type="xs:NCName"/>
+            <xs:attribute name="scope"/>
+            <xs:attribute name="repoScope"/>
+            <xs:attribute name="editable" type="xs:boolean" use="optional"/>
+            <xs:attribute name="inherit" type="xs:boolean" use="optional"/>
+            <xs:attribute name="uploadAction" use="optional"/>
+            <xs:attribute name="loadAction" use="optional"/>
+            <xs:attribute name="defaultImage" use="optional"/>
+            <xs:attribute name="group_switch_name" use="optional"/>
+            <xs:attribute name="group_switch_value" use="optional"/>
+            <xs:attribute name="group_switch_label" use="optional"/>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="input_param">
+        <xs:complexType>
+            <xs:attribute name="choices"/>
+            <xs:attribute name="default"/>
+            <xs:attribute name="description" use="required"/>
+            <xs:attribute name="mandatory" type="xs:boolean"/>
+            <xs:attribute name="name" use="required" type="xs:NCName"/>
+            <xs:attribute name="type" use="required" type="xs:all"/>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="output">
+        <xs:complexType>
+            <xs:attribute name="type" use="required" type="xs:all"/>
+            <xs:attribute name="description" use="optional"/>
         </xs:complexType>
     </xs:element>
     <xs:element name="user_param">
@@ -657,6 +712,7 @@
             <xs:attribute name="choices"/>
             <xs:attribute name="default"/>
             <xs:attribute name="description" use="required"/>
+            <xs:attribute name="expose" type="xs:boolean"/>
             <xs:attribute name="group"/>
             <xs:attribute name="replicationGroup"/>
             <xs:attribute name="label" use="required"/>
@@ -664,7 +720,13 @@
             <xs:attribute name="name" use="required" type="xs:NCName"/>
             <xs:attribute name="no_templates" type="xs:boolean"/>
             <xs:attribute name="templates_only" type="xs:boolean"/>
-            <xs:attribute name="type" use="required" type="xs:NCName"/>
+            <xs:attribute name="type" use="required" type="xs:Name"/>
+            <xs:attribute name="scope"/>
+            <xs:attribute name="repoScope"/>
+            <xs:attribute name="editable" type="xs:boolean" use="optional"/>
+            <xs:attribute name="uploadAction" use="optional"/>
+            <xs:attribute name="loadAction" use="optional"/>
+            <xs:attribute name="defaultImage" use="optional"/>
         </xs:complexType>
     </xs:element>
     <xs:element name="plugin_info">
@@ -718,6 +780,7 @@
     <xs:element name="clientForm">
         <xs:complexType mixed="true">
             <xs:attribute name="id" use="required" type="xs:NCName"/>
+            <xs:attribute name="theme" use="optional" type="xs:NCName"/>
         </xs:complexType>
     </xs:element>
     <xs:element name="plugin_configs">

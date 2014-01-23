@@ -1,36 +1,37 @@
 <?php
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 defined('AJXP_EXEC') or die( 'Access not allowed');
 require_once('../classes/class.AbstractTest.php');
 
 /**
- * @package info.ajaxplorer.test
  * Check current PHP Version
+ * @package AjaXplorer
+ * @subpackage Tests
  */
 class PHPCLI extends AbstractTest
 {
-    function PHPCLI() { parent::AbstractTest("PHP Command Line", "Testing PHP command line (default is php)"); }
-    function doTest() 
+    public function PHPCLI() { parent::AbstractTest("PHP Command Line", "Testing PHP command line (default is php)"); }
+    public function doTest()
     {
-        if(!is_writable(AJXP_CACHE_DIR)){
+        if (!is_writable(AJXP_CACHE_DIR)) {
             $this->testedParams["Command Line Available"] = "No";
             $this->failedLevel = "warning";
             $this->failedInfo = "Php command line not detected (cache directory not writeable), this is NOT BLOCKING, but enabling it could allow to send some long tasks in background. If you do not have the ability to tweak your server, you can safely ignore this warning.";
@@ -48,10 +49,10 @@ class PHPCLI extends AbstractTest
         $comEnabled = class_exists("COM");
         $useCOM = false;
 
-        if( ( $safeEnabled ||  $notFoundFunction )){
-            if($comEnabled){
+        if ( ( $safeEnabled ||  $notFoundFunction )) {
+            if ($comEnabled) {
                 $useCOM = true;
-            }else{
+            } else {
                 $this->testedParams["Command Line Available"] = "No";
                 $this->failedLevel = "warning";
                 $this->failedInfo = "Php command line not detected (there seem to be some safe_mode or a-like restriction), this is NOT BLOCKING, but enabling it could allow to send some long tasks in background. If you do not have the ability to tweak your server, you can safely ignore this warning.";
@@ -73,57 +74,56 @@ class PHPCLI extends AbstractTest
 
         $cmd = $defaultCli." ". $robustCacheDir .DIRECTORY_SEPARATOR."cli_test.php";
 
-        if ($windows){
-
+        if ($windows) {
             /* Next 2 lines modified by rmeske: Need to wrap the folder and file paths in double quotes.  */
             $cmd = $defaultCli." ". chr(34).$robustCacheDir .DIRECTORY_SEPARATOR."cli_test.php".chr(34);
             $cmd .= " > ".chr(34).$logFile.chr(34);
 
             $comCommand = $cmd;
-            if($useCOM){
+            if ($useCOM) {
                 $WshShell   = new COM("WScript.Shell");
                 $res = $WshShell->Run("cmd /C $comCommand", 0, false);
-            }else{
+            } else {
                 $tmpBat = implode(DIRECTORY_SEPARATOR, array(str_replace("/", DIRECTORY_SEPARATOR, AJXP_INSTALL_PATH), "data","tmp", md5(time()).".bat"));
                 $cmd .= "\n DEL ".chr(34).$tmpBat.chr(34);
                 file_put_contents($tmpBat, $cmd);
                 /* Following 1 line modified by rmeske: The windows Start command identifies the first parameter in quotes as a title for the window.  Therefore, when enclosing a command with double quotes you must include a window title first
-                    START	["title"] [/Dpath] [/I] [/MIN] [/MAX] [/SEPARATE | /SHARED] [/LOW | /NORMAL | /HIGH | /REALTIME] [/WAIT] [/B] [command / program] [parameters]
-                    */
+                START	["title"] [/Dpath] [/I] [/MIN] [/MAX] [/SEPARATE | /SHARED] [/LOW | /NORMAL | /HIGH | /REALTIME] [/WAIT] [/B] [command / program] [parameters]
+                */
                 @pclose(@popen('start /b "CLI" "'.$tmpBat.'"', 'r'));
                 sleep(1);
                 // Failed, but we can try with COM
-                if( ! is_file(AJXP_CACHE_DIR."/cli_result.php") && $comEnabled ){
+                if ( ! is_file(AJXP_CACHE_DIR."/cli_result.php") && $comEnabled ) {
                     $useCOM = true;
                     $WshShell   = new COM("WScript.Shell");
                     $res = $WshShell->Run("cmd /C $comCommand", 0, false);
                 }
             }
-        }else{
+        } else {
             new UnixProcess($cmd, $logFile);
         }
 
         sleep(1);
         $availability = true;
-        if(is_file(AJXP_CACHE_DIR."/cli_result.php")){
+        if (is_file(AJXP_CACHE_DIR."/cli_result.php")) {
             $this->testedParams["Command Line Available"] = "Yes";
             unlink(AJXP_CACHE_DIR."/cli_result.php");
-            if($useCOM){
+            if ($useCOM) {
                 $this->failedLevel = "warning";
                 $availability = true;
-                $this->failedInfo = "Php command line detected, but using the windows COM extension. Just make sure to <b>enable COM</b> in the AjaXplorer Core Options";
-            }else{
-                $this->failedInfo = "Php command line detected, this will allow to send some tasks in background. Enable it in the AjaXplorer Core Options";
+                $this->failedInfo = "Php command line detected, but using the windows COM extension. Just make sure to <b>enable COM</b> in the Pydio Core Options";
+            } else {
+                $this->failedInfo = "Php command line detected, this will allow to send some tasks in background. Enable it in the Pydio Core Options";
             }
-        }else{
-            if(is_file($logFile)){
+        } else {
+            if (is_file($logFile)) {
                 $log = file_get_contents($logFile);
                 unlink($logFile);
             }
             $this->testedParams["Command Line Available"] = "No : $log";
             $this->failedLevel = "warning";
             $this->failedInfo = "Php command line not detected, this is NOT BLOCKING, but enabling it could allow to send some long tasks in background. If you do not have the ability to tweak your server, you can safely ignore this warning.";
-            if($windows){
+            if ($windows) {
                 $this->failedInfo .= "<br> On Windows, try to activate the php COM extension, and set correct rights to the cmd exectuble to make it runnable by the web server, this should solve the problem.";
             }
             $availability = false;
@@ -133,5 +133,3 @@ class PHPCLI extends AbstractTest
         return $availability;
     }
 };
-
-?>

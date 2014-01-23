@@ -1,21 +1,21 @@
 /*
- * Copyright 2007-2011 Charles du Jeu <contact (at) cdujeu.me>
- * This file is part of AjaXplorer.
+ * Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+ * This file is part of Pydio.
  *
- * AjaXplorer is free software: you can redistribute it and/or modify
+ * Pydio is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * AjaXplorer is distributed in the hope that it will be useful,
+ * Pydio is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with AjaXplorer.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Pydio.  If not, see <http://www.gnu.org/licenses/>.
  *
- * The latest code can be found at <http://www.ajaxplorer.info/>.
+ * The latest code can be found at <http://pyd.io/>.
  */
 
 /** 
@@ -35,6 +35,7 @@ Class.create("Action", {
 		this.options = Object.extend({
 			name:'',
 			src:'',
+            icon_class:'',
 			text:'',
 			title:'',
 			text_id:'',
@@ -49,6 +50,7 @@ Class.create("Action", {
 			callback:Prototype.emptyFunction,
 			prepareModal:false, 
 			listeners : [],
+            activeCondition:null,
 			formId:undefined, 
 			formCode:undefined
 			}, arguments[0] || { });
@@ -56,6 +58,7 @@ Class.create("Action", {
 			selection:true,
 			dir:false,
 			allowedMimes:$A([]),
+            evalMetadata:'',
 			root:true,
 			inZip:true,
 			recycle:false,
@@ -72,15 +75,17 @@ Class.create("Action", {
 			file:true,
 			recycle:false,
 			behaviour:'disabled',
-			allowedMimes:$A([]),			
+			allowedMimes:$A([]),
+            evalMetadata:'',
 			unique:true,
-			multipleOnly:false
+			multipleOnly:false,
+            enableRoot:false
 			}, arguments[2] || { });
 		this.rightsContext = Object.extend({			
 			noUser:true,
 			userLogged:true,
 			guestLogged:false,
-			read:true,
+			read:false,
 			write:false,
 			adminOnly:false
 			}, arguments[3] || { });
@@ -137,7 +142,8 @@ Class.create("Action", {
 		if(this.options.prepareModal){
 			modal.prepareHeader(
 				this.options.title, 
-				resolveImageSource(this.options.src,this.__DEFAULT_ICON_PATH, 16)
+				resolveImageSource(this.options.src,this.__DEFAULT_ICON_PATH, 16),
+                this.options.icon_class
 			);
 		}
 		window.actionArguments = $A([]);
@@ -188,17 +194,29 @@ Class.create("Action", {
 	 * @returns void
 	 */
 	fireContextChange: function(){
-		if(arguments.length < 4) return;
+		if(arguments.length < 3) return;
 		var usersEnabled = arguments[0];
 		var crtUser = arguments[1];
-		var crtIsRecycle = arguments[2];
-		var crtInZip = arguments[3];
-		var crtIsRoot = arguments[4];
-		var crtAjxpMime = arguments[5] || '';
+
+        var crtIsRecycle = false;
+        var crtInZip = false;
+        var crtIsRoot = false;
+        var crtAjxpMime = '';
+        var crtIsReadOnly = false;
+
+        var crtNode = arguments[2];
+        if(crtNode){
+            crtIsRecycle = (crtNode.getAjxpMime() == "ajxp_recycle");
+            crtInZip = crtNode.hasAjxpMimeInBranch("ajxp_browsable_archive");
+            crtIsRoot = crtNode.isRoot();
+            crtAjxpMime = crtNode.getAjxpMime();
+            crtIsReadOnly = crtNode.hasMetadataInBranch("ajxp_readonly", "true");
+        }
+
 		if(this.options.listeners["contextChange"]){
 			window.listenerContext = this;
 			this.options.listeners["contextChange"].evalScripts();			
-		}		
+		}
 		var rightsContext = this.rightsContext;
 		if(!rightsContext.noUser && !usersEnabled){
 			return this.hideForContext();				
@@ -213,16 +231,22 @@ Class.create("Action", {
 		if(rightsContext.adminOnly && (crtUser == null || !crtUser.isAdmin)){
 			return this.hideForContext();
 		}
-		if(rightsContext.read && crtUser != null && !crtUser.canRead()){
+		if(rightsContext.read && crtUser != null && !crtUser.canRead() ){
 			return this.hideForContext();
 		}
 		if(rightsContext.write && crtUser != null && !crtUser.canWrite()){
 			return this.hideForContext();
 		}
+        if(rightsContext.write && crtIsReadOnly){
+            return this.hideForContext();
+        }
 		if(this.context.allowedMimes.length){
 			if( !this.context.allowedMimes.include("*") && !this.context.allowedMimes.include(crtAjxpMime)){
 				return this.hideForContext();
 			}
+            if( this.context.allowedMimes.include("^"+crtAjxpMime)){
+                return this.hideForContext();
+            }
 		}
 		if(this.context.recycle){
 			if(this.context.recycle == 'only' && !crtIsRecycle){
@@ -250,16 +274,19 @@ Class.create("Action", {
 			window.listenerContext = this;
 			this.options.listeners["selectionChange"].evalScripts();			
 		}
-		if(arguments.length < 1 
-			|| this.contextHidden 
+        if(this.options.activeCondition){
+            if(this.options.activeCondition() === false) return this.disable();
+            else if(this.options.activeCondition() === true) this.enable();
+        }
+		if(this.contextHidden
 			|| !this.context.selection) {	
 			return;
 		}
 		var userSelection = arguments[0];		
-		var bSelection = false;
+		var hasRoot = false;
 		if(userSelection != null) 
 		{			
-			bSelection = !userSelection.isEmpty();
+			hasRoot = userSelection.selectionHasRootNode();
 			var bUnique = userSelection.isUnique();
 			var bFile = userSelection.hasFile();
 			var bDir = userSelection.hasDir();
@@ -270,6 +297,18 @@ Class.create("Action", {
 			if(selectionContext.behaviour == 'hidden') this.hide();
 			else this.disable();
 		}
+        if(selectionContext.evalMetadata && userSelection && userSelection.isUnique()){
+            var metadata = userSelection.getUniqueNode().getMetadata();
+            var result = eval(selectionContext.evalMetadata);
+            if(!result){
+                if(selectionContext.behaviour == 'hidden') this.hide();
+             	else this.disable();
+                return;
+            }
+        }
+        if(!selectionContext.enableRoot && hasRoot){
+            return this.disable();
+        }
 		if(selectionContext.unique && !bUnique){
 			return this.disable();
 		}
@@ -283,14 +322,31 @@ Class.create("Action", {
 		if(!selectionContext.recycle && bRecycle){
 			return this.disable();
 		}
-		if((selectionContext.allowedMimes.size() && userSelection && !userSelection.hasMime(selectionContext.allowedMimes) && !selectionContext.allowedMimes.include('*')) 
-			&& !(selectionContext.dir && bDir)){
+        if(this.rightsContext.write && userSelection.hasReadOnly()){
+            return this.disable();
+        }
+		if(selectionContext.allowedMimes.size() && userSelection  && !selectionContext.allowedMimes.include('*')
+            &&  !userSelection.hasMime(selectionContext.allowedMimes)){
 			if(selectionContext.behaviour == 'hidden') return this.hide();
 			else return this.disable();
 		}
+        if(selectionContext.allowedMimes.size() && userSelection && Object.toJSON(selectionContext.allowedMimes).indexOf("^") !== -1){
+            var forbiddenValueFound = false;
+            selectionContext.allowedMimes.each(function(m){
+                if(m.indexOf("^") == -1) return;
+                if(userSelection.hasMime([m.replace("^", "")])){
+                    forbiddenValueFound = true;
+                    throw $break;
+                }
+            });
+            if(forbiddenValueFound){
+                if(selectionContext.behaviour == 'hidden') return this.hide();
+       			else return this.disable();
+            }
+        }
 		this.show();
 		this.enable();
-		
+
 	},
 		
 	/**
@@ -315,13 +371,15 @@ Class.create("Action", {
 				}
 			}.bind(this));
 			if(node.nodeName == "processing"){
+                var clientFormData = {};
 				for(var j=0; j<node.childNodes.length; j++){
 					var processNode = node.childNodes[j];
 					if(processNode.nodeName == "clientForm"){
-						this.options.formId = processNode.getAttribute("id");
-						this.options.formCode = processNode.firstChild.nodeValue;
-						this.insertForm();
-					}else if(processNode.nodeName == "clientCallback"){						
+                        if(!processNode.getAttribute("theme") || window.ajxpBootstrap.parameters.get('theme') == processNode.getAttribute("theme") ){
+                            clientFormData.formId = processNode.getAttribute("id");
+                            clientFormData.formCode = processNode.firstChild.nodeValue;
+                        }
+					}else if(processNode.nodeName == "clientCallback"){
 						if(processNode.getAttribute('prepareModal') && processNode.getAttribute('prepareModal') == "true"){
 							this.options.prepareModal = true;						
 						}
@@ -332,14 +390,22 @@ Class.create("Action", {
 						}
 					}else if(processNode.nodeName == "clientListener" && processNode.firstChild){						
 						this.options.listeners[processNode.getAttribute('name')] = '<script>'+processNode.firstChild.nodeValue+'</script>';
+					}else if(processNode.nodeName == "activeCondition" && processNode.firstChild){
+						this.options.activeCondition = new Function(processNode.firstChild.nodeValue.strip());
 					}
 				}
+                if(clientFormData.formId){
+                    this.options.formId = clientFormData.formId;
+                    this.options.formCode = clientFormData.formCode;
+                    this.insertForm();
+                }
 			}else if(node.nodeName == "gui"){
 				this.options.text_id = node.getAttribute('text');
 				this.options.title_id = node.getAttribute('title');
 				this.options.text = MessageHash[node.getAttribute('text')] || 'not_found';
 				this.options.title = MessageHash[node.getAttribute('title')] || 'not_found';
 				this.options.src = node.getAttribute('src');								
+				this.options.icon_class = node.getAttribute('iconClass');
 				if(node.getAttribute('hasAccessKey') && node.getAttribute('hasAccessKey') == "true"){
 					this.options.accessKey = node.getAttribute('accessKey');
 					this.options.hasAccessKey = true;
@@ -378,7 +444,7 @@ Class.create("Action", {
 					if(node.childNodes[j].nodeName == "staticItems" || node.childNodes[j].nodeName == "dynamicItems"){
 						this.subMenuItems[node.childNodes[j].nodeName] = [];
 						for(var k=0;k<node.childNodes[j].childNodes.length;k++){
-							if(node.childNodes[j].childNodes[k].nodeName == "item"){
+							if(node.childNodes[j].childNodes[k].nodeName.startsWith("item")){
 								var item = {};
 								for(var z=0;z<node.childNodes[j].childNodes[k].attributes.length;z++){
 									var attribute = node.childNodes[j].childNodes[k].attributes[z];
@@ -421,6 +487,7 @@ Class.create("Action", {
 					name:itemText,
 					alt:MessageHash[item.title],
 					image:resolveImageSource(item.src, '/images/actions/ICON_SIZE', 22),
+                    icon_class:item.icon_class,
 					isDefault:(item.isDefault?true:false),
 					callback:function(e){this.apply([item]);}.bind(this)
 				});
@@ -437,19 +504,35 @@ Class.create("Action", {
 			setTimeout(function(){
 				if(this.subMenuItems.dynamicBuilderCode){
 					window.builderContext = this;
+                    window.builderProtoMenu = protoMenu;
 					this.subMenuItems.dynamicBuilderCode.evalScripts();
 					var menuItems = this.builderMenuItems || [];					
 				}else{
 			  		var menuItems = [];
 			  		this.subMenuItems.dynamicItems.each(function(item){
+                        if(item.separator){
+                            menuItems.push(item);
+                            return;
+                        }
 			  			var action = this.manager.actions.get(item['actionId']);
 			  			if(action.deny) return;
-						menuItems.push({
+						var itemData = {
 							name:action.getKeyedText(),
 							alt:action.options.title,
+                            icon_class:action.options.icon_class,
 							image:resolveImageSource(action.options.src, '/images/actions/ICON_SIZE', 16),						
 							callback:function(e){this.apply();}.bind(action)
-						});
+						};
+                        if(action.options.subMenu){
+                            itemData.subMenu = [];
+                            if(action.subMenuItems.staticOptions){
+                                itemData.subMenu = action.subMenuItems.staticOptions;
+                            }
+                            if(action.subMenuItems.dynamicBuilder){
+                                itemData.subMenuBeforeShow = action.subMenuItems.dynamicBuilder;
+                            }
+                        }
+                        menuItems.push(itemData);
 			  		}, this);
 				}
 			  	protoMenu.options.menuItems = menuItems;
@@ -462,11 +545,20 @@ Class.create("Action", {
 	 * Refresh icon image source
 	 * @param newSrc String The image source. Can reference an image library
 	 */
-	setIconSrc : function(newSrc){
+	setIconSrc : function(newSrc, iconClass){
 		this.options.src = newSrc;
+        var previousIconClass;
+        if(iconClass){
+            previousIconClass = this.options.icon_class;
+            this.options.icon_class = iconClass;
+            if(iconClass && $(this.options.name +'_button')&& $(this.options.name +'_button').down('span.ajxp_icon_span')){
+                $(this.options.name +'_button').down('span.ajxp_icon_span').removeClassName(previousIconClass);
+                $(this.options.name +'_button').down('span.ajxp_icon_span').addClassName(iconClass);
+            }
+        }
 		if($(this.options.name +'_button_icon')){
 			$(this.options.name +'_button_icon').src = resolveImageSource(this.options.src,this.__DEFAULT_ICON_PATH, 22);
-		}		
+		}
 	},
 	
 	/**
@@ -536,8 +628,11 @@ Class.create("Action", {
 	 * Changes show/hide state
 	 */
 	showForContext: function(){
-		this.show();
-		this.contextHidden = false;
+        this.contextHidden = false;
+        this.show();
+        if(this.selectionContext){
+            this.fireSelectionChange();
+        }
 	},
 	
 	/**

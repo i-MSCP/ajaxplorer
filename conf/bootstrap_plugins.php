@@ -58,7 +58,6 @@ $PLUGINS = array(
 			"USERS_DIRPATH" => "AJXP_DATA_PATH/plugins/auth.serial",
 		)
 	),
-
 	"AUTH_DRIVER" => array(
 		"NAME" => "ftp",
 		"OPTIONS" => array(
@@ -70,7 +69,6 @@ $PLUGINS = array(
 			"TRANSMIT_CLEAR_PASS" => true,
 		)
 	),
-
 	"LOG_DRIVER" => array(
 		"NAME" => "text",
 		"OPTIONS" => array(

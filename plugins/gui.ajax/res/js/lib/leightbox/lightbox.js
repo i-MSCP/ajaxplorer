@@ -128,9 +128,29 @@ lightbox.prototype = {
 			addLightboxMarkup();
 		}
 		if(display == 'none'){
-			$('overlay').fade({duration:0.5});
+			$('overlay').fade({
+                duration:0.5,
+                afterFinish : function(){
+                    if(this.originalStyle){
+                        $('overlay').setStyle(this.originalStyle);
+                    }
+                }.bind(this)
+            });
 		}else{
+            $('overlay').setAttribute('style', '');
 			$('overlay').style.display = display;
+            if(this.overlayStyle){
+                this.originalStyle = {};
+                for(var key in this.overlayStyle){
+                    this.originalStyle[key] = $('overlay').getStyle(key);
+                }
+                $('overlay').setStyle(this.overlayStyle);
+            }
+            if(this.overlayClass){
+                $('overlay').className = 'overlay '+this.overlayClass;
+            }else{
+                $('overlay').className = 'overlay';
+            }
 		}
 		if(this.content != null)
 		{
@@ -138,24 +158,8 @@ lightbox.prototype = {
 			currentDraggable = new Draggable(this.content, {
 				handle:"dialogTitle",
 				zindex:1050, 
-				starteffect : function(element){
-					if(element.shadows) {
-						Shadower.deshadow(element);
-						element.hadShadow = true;
-					}
-				},
-				endeffect : function(element){
-					if(element.hadShadow){
-						Shadower.shadow(element,{
-							distance: 4,
-							angle: 130,
-							opacity: 0.5,
-							nestedShadows: 3,
-							color: '#000000',
-							shadowStyle:{display:'block'}
-						});
-					}
-				}
+				starteffect : function(element){},
+				endeffect : function(element){}
 			});
 		}
 		//if(display != 'none') this.actions();		
@@ -204,7 +208,16 @@ function initialize(){
 		{
 			ajaxplorer.cancelCopyOrMove();
 			//modal.close();
-			hideLightBox();
+            if(modal.currentLightBoxElement){
+                removeLightboxFromElement(modal.currentLightBoxElement);
+                if(modal.currentLightBoxModal && modal.currentLightBoxModal.parentNode) {
+                    modal.currentLightBoxModal.remove();
+                }
+                modal.currentLightBoxElement = null;
+                modal.currentLightBoxModal = null;
+            }else{
+                hideLightBox();
+            }
 		}
 		if(e.keyCode == 9) return false;
 		return true;
@@ -212,9 +225,11 @@ function initialize(){
 	
 }
 
-function displayLightBoxById(id)
+function displayLightBoxById(id, overlayStyle, overlayClass)
 {
 	valid = new lightbox(id);
+    if(overlayStyle) valid.overlayStyle = overlayStyle;
+    if(overlayClass) valid.overlayClass = overlayClass;
 	valid.activate();
 	currentLightBox = valid;	
 	if(id != 'copymove_div')
@@ -250,7 +265,6 @@ function hideLightBox(onFormSubmit)
 		modal.closeFunction();
 		modal.closeFunction = null;
 	}
-	Shadower.deshadow($(modal.elementName));
 }
 
 function setOverlay()
