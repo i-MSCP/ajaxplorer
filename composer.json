@@ -1,6 +1,6 @@
 {
 	"name":"imscp/ajaxplorer",
-	"description":"iMSCP tools - AjaxPlorer filemanager",
+	"description":"iMSCP tools - Pydio (AjaXplorer) filemanager",
 	"version":"5.2.0",
 	"authors":[
 	{
