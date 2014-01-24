@@ -1,3 +1,0 @@
-# Pydio is currently not compatible with the
-# opcache module, which come with PHP5.5
-php_flag opcache.enable Off
