@@ -33,6 +33,10 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
     private $listSpecialRoles = AJXP_SERVER_DEBUG;
     private $currentBookmarks = array();
 
+    private function filterReservedRoles($key){
+        return (strpos($key, "AJXP_GRP_/") === FALSE && strpos($key, "AJXP_USR_/") === FALSE);
+    }
+
     public function listAllActions($action, $httpVars, $fileVars)
     {
         if(!isSet($this->actions[$action])) return;
@@ -450,18 +454,19 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                     $gName = AJXP_Utils::sanitize(AJXP_Utils::decodeSecureMagic(basename($httpVars["group_path"])), AJXP_SANITIZE_ALPHANUM);
                 } else {
                     $basePath = substr($httpVars["dir"], strlen("/data/users"));
-                    $gName    = AJXP_Utils::sanitize($httpVars["group_name"], AJXP_SANITIZE_ALPHANUM);
+                    $gName    = AJXP_Utils::sanitize(SystemTextEncoding::magicDequote($httpVars["group_name"]), AJXP_SANITIZE_ALPHANUM);
                 }
                 $gLabel   = AJXP_Utils::decodeSecureMagic($httpVars["group_label"]);
                 AuthService::createGroup($basePath, $gName, $gLabel);
                 AJXP_XMLWriter::header();
+                AJXP_XMLWriter::sendMessage($mess["ajxp_conf.124"], null);
                 AJXP_XMLWriter::reloadDataNode();
                 AJXP_XMLWriter::close();
 
             break;
 
             case "create_role":
-                $roleId = AJXP_Utils::sanitize($httpVars["role_id"], AJXP_SANITIZE_HTML_STRICT);
+                $roleId = AJXP_Utils::sanitize(SystemTextEncoding::magicDequote($httpVars["role_id"]), AJXP_SANITIZE_HTML_STRICT);
                 if (!strlen($roleId)) {
                     throw new Exception($mess[349]);
                 }
@@ -480,7 +485,7 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
             break;
 
             case "edit_role" :
-                $roleId = $httpVars["role_id"];
+                $roleId = SystemTextEncoding::magicDequote($httpVars["role_id"]);
                 $roleGroup = false;
                 if (strpos($roleId, "AJXP_GRP_") === 0) {
                     $groupPath = substr($roleId, strlen("AJXP_GRP_"));
@@ -497,6 +502,9 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                 if (strpos($roleId, "AJXP_USR_") === 0) {
                     $usrId = str_replace("AJXP_USR_/", "", $roleId);
                     $userObject = ConfService::getConfStorageImpl()->createUserObject($usrId);
+                    if(!AuthService::canAdministrate($userObject)){
+                        throw new Exception("Cant find user!");
+                    }
                     $role = $userObject->personalRole;
                 } else {
                     $role = AuthService::getRole($roleId, $roleGroup);
@@ -550,7 +558,7 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
 
             case "post_json_role" :
 
-                $roleId = $httpVars["role_id"];
+                $roleId = SystemTextEncoding::magicDequote($httpVars["role_id"]);
                 $roleGroup = false;
                 if (strpos($roleId, "AJXP_GRP_") === 0) {
                     $groupPath = substr($roleId, strlen("AJXP_GRP_"));
@@ -567,6 +575,9 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                 if (strpos($roleId, "AJXP_USR_") === 0) {
                     $usrId = str_replace("AJXP_USR_/", "", $roleId);
                     $userObject = ConfService::getConfStorageImpl()->createUserObject($usrId);
+                    if(!AuthService::canAdministrate($userObject)){
+                        throw new Exception("Cannot post role for user ".$usrId);
+                    }
                     $originalRole = $userObject->personalRole;
                 } else {
                     // second param = create if not exists.
@@ -632,6 +643,9 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                 $lockType = $httpVars["lock_type"];
                 if (AuthService::userExists($userId)) {
                     $userObject = ConfService::getConfStorageImpl()->createUserObject($userId);
+                    if(!AuthService::canAdministrate($userObject)){
+                        throw new Exception("Cannot update user data for ".$userId);
+                    }
                     if ($lock) {
                         $userObject->setLock($lockType);
                     } else {
@@ -650,7 +664,7 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                     AJXP_XMLWriter::close();
                     return;
                 }
-                $new_user_login = AJXP_Utils::sanitize($httpVars["new_user_login"], AJXP_SANITIZE_EMAILCHARS);
+                $new_user_login = AJXP_Utils::sanitize(SystemTextEncoding::magicDequote($httpVars["new_user_login"]), AJXP_SANITIZE_EMAILCHARS);
                 if (AuthService::userExists($new_user_login, "w") || AuthService::isReservedUserId($new_user_login)) {
                     AJXP_XMLWriter::header();
                     AJXP_XMLWriter::sendMessage(null, $mess["ajxp_conf.43"]);
@@ -684,6 +698,9 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                 }
                 $confStorage = ConfService::getConfStorageImpl();
                 $user = $confStorage->createUserObject($userId);
+                if(!AuthService::canAdministrate($user)){
+                    throw new Exception("Cannot update user with id ".$userId);
+                }
                 $user->setAdmin(($httpVars["right_value"]=="1"?true:false));
                 $user->save("superuser");
                 AJXP_XMLWriter::header();
@@ -732,7 +749,11 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                     return;
                 }
                 $confStorage = ConfService::getConfStorageImpl();
-                $user = $confStorage->createUserObject($httpVars["user_id"]);
+                $userId = AJXP_Utils::sanitize($httpVars["user_id"], AJXP_SANITIZE_EMAILCHARS);
+                $user = $confStorage->createUserObject($userId);
+                if(!AuthService::canAdministrate($user)){
+                    throw new Exception("Cannot update user with id ".$userId);
+                }
                 $user->personalRole->setAcl(AJXP_Utils::sanitize($httpVars["repository_id"], AJXP_SANITIZE_ALPHANUM), AJXP_Utils::sanitize($httpVars["right"], AJXP_SANITIZE_ALPHANUM));
                 $user->save();
                 $loggedUser = AuthService::getLoggedUser();
@@ -771,6 +792,9 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                         continue;
                     }
                     $user = $confStorage->createUserObject($userId);
+                    if( ! AuthService::canAdministrate($user) ){
+                        continue;
+                    }
                     $basePath = (AuthService::getLoggedUser()!=null ? AuthService::getLoggedUser()->getGroupPath(): "/");
                     if(empty ($basePath)) $basePath = "/";
                     if (!empty($groupPath)) {
@@ -800,7 +824,7 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                     $act = "remove";
                     $messId = "74";
                 }
-                $this->updateUserRole($httpVars["user_id"], $httpVars["role_id"], $act);
+                $this->updateUserRole(AJXP_Utils::sanitize($httpVars["user_id"], AJXP_SANITIZE_EMAILCHARS), $httpVars["role_id"], $act);
                 AJXP_XMLWriter::header();
                 AJXP_XMLWriter::sendMessage($mess["ajxp_conf.".$messId].$httpVars["user_id"], null);
                 AJXP_XMLWriter::close();
@@ -829,6 +853,9 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                         $userObject = $this->updateUserRole($userId, $roleId, $update);
                     } else {
                         $userObject = $confStorage->createUserObject($userId);
+                        if(!AuthService::canAdministrate($userObject)){
+                            continue;
+                        }
                     }
                     if ($userObject->hasParent()) {
                         unset($files[$index]);
@@ -858,13 +885,17 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
             break;
 
             case "save_custom_user_params" :
-                $userId = $httpVars["user_id"];
+                $userId = AJXP_Utils::sanitize($httpVars["user_id"], AJXP_SANITIZE_EMAILCHARS);
                 if ($userId == $loggedUser->getId()) {
                     $user = $loggedUser;
                 } else {
                     $confStorage = ConfService::getConfStorageImpl();
                     $user = $confStorage->createUserObject($userId);
                 }
+                if(!AuthService::canAdministrate($user)){
+                    throw new Exception("Cannot update user with id ".$userId);
+                }
+
                 $custom = $user->getPref("CUSTOM_PARAMS");
                 if(!is_array($custom)) $custom = array();
 
@@ -884,13 +915,17 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
             break;
 
             case "save_repository_user_params" :
-                $userId = $httpVars["user_id"];
+                $userId = AJXP_Utils::sanitize($httpVars["user_id"], AJXP_SANITIZE_EMAILCHARS);
                 if ($userId == $loggedUser->getId()) {
                     $user = $loggedUser;
                 } else {
                     $confStorage = ConfService::getConfStorageImpl();
                     $user = $confStorage->createUserObject($userId);
                 }
+                if(!AuthService::canAdministrate($user)){
+                    throw new Exception("Cannot update user with id ".$userId);
+                }
+
                 $wallet = $user->getPref("AJXP_WALLET");
                 if(!is_array($wallet)) $wallet = array();
                 $repoID = $httpVars["repository_id"];
@@ -919,10 +954,15 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                     AJXP_XMLWriter::close();
                     return;
                 }
-                $res = AuthService::updatePassword($httpVars["user_id"], $httpVars["user_pwd"]);
+                $userId = AJXP_Utils::sanitize($httpVars["user_id"], AJXP_SANITIZE_EMAILCHARS);
+                $user = ConfService::getConfStorageImpl()->createUserObject($userId);
+                if(!AuthService::canAdministrate($user)){
+                    throw new Exception("Cannot update user data for ".$userId);
+                }
+                $res = AuthService::updatePassword($userId, $httpVars["user_pwd"]);
                 AJXP_XMLWriter::header();
                 if ($res === true) {
-                    AJXP_XMLWriter::sendMessage($mess["ajxp_conf.48"].$httpVars["user_id"], null);
+                    AJXP_XMLWriter::sendMessage($mess["ajxp_conf.48"].$userId, null);
                 } else {
                     AJXP_XMLWriter::sendMessage(null, $mess["ajxp_conf.49"]." : $res");
                 }
@@ -935,17 +975,21 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                 if (!isSet($httpVars["user_id"]) || !AuthService::userExists($httpVars["user_id"]) ) {
                     throw new Exception($mess["ajxp_conf.61"]);
                 }
-                $userId = $httpVars["user_id"];
+                $userId = AJXP_Utils::sanitize($httpVars["user_id"], AJXP_SANITIZE_EMAILCHARS);
                 if ($userId == $loggedUser->getId()) {
                     $userObject = $loggedUser;
                 } else {
                     $confStorage = ConfService::getConfStorageImpl();
                     $userObject = $confStorage->createUserObject($userId);
                 }
+                if(!AuthService::canAdministrate($userObject)){
+                    throw new Exception("Cannot update user data for ".$userId);
+                }
+
                 $i = 0;
                 while (isSet($httpVars["pref_name_".$i]) && isSet($httpVars["pref_value_".$i])) {
                     $prefName = AJXP_Utils::sanitize($httpVars["pref_name_".$i], AJXP_SANITIZE_ALPHANUM);
-                    $prefValue = AJXP_Utils::sanitize($httpVars["pref_value_".$i]);
+                    $prefValue = AJXP_Utils::sanitize(SystemTextEncoding::magicDequote($httpVars["pref_value_".$i]));
                     if($prefName == "password") continue;
                     if ($prefName != "pending_folder" && $userObject == null) {
                         $i++;
@@ -997,7 +1041,7 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                 unset($repDef["get_action"]);
                 unset($repDef["sf_checkboxes_active"]);
                 if (isSet($httpVars["json_data"])) {
-                    $repDef = json_decode($httpVars["json_data"], true);
+                    $repDef = json_decode(SystemTextEncoding::magicDequote($httpVars["json_data"]), true);
                     $options = $repDef["DRIVER_OPTIONS"];
                 } else {
                     $options = array();
@@ -1011,6 +1055,9 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                     $templateId = substr($repDef["DRIVER"], 14);
                     $templateRepo = ConfService::getRepositoryById($templateId);
                     $newRep = $templateRepo->createTemplateChild($repDef["DISPLAY"], $repDef["DRIVER_OPTIONS"]);
+                    if(isSet($repDef["AJXP_SLUG"])){
+                        $newRep->setSlug($repDef["AJXP_SLUG"]);
+                    }
                 } else {
                     if ($currentUserIsGroupAdmin) {
                         throw new Exception("You are not allowed to create a repository from a driver. Use a template instead.");
@@ -1283,7 +1330,7 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                 }
                 $metaSourceType = AJXP_Utils::sanitize($httpVars["new_meta_source"], AJXP_SANITIZE_ALPHANUM);
                 if (isSet($httpVars["json_data"])) {
-                    $options = json_decode($httpVars["json_data"], true);
+                    $options = json_decode(SystemTextEncoding::magicDequote($httpVars["json_data"]), true);
                 } else {
                     $options = array();
                     $this->parseParameters($httpVars, $options, null, true);
@@ -1337,7 +1384,7 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                     $repoOptions = array();
                 }
                 if (isSet($httpVars["json_data"])) {
-                    $options = json_decode($httpVars["json_data"], true);
+                    $options = json_decode(SystemTextEncoding::magicDequote($httpVars["json_data"]), true);
                 } else {
                     $options = array();
                     $this->parseParameters($httpVars, $options, null, true);
@@ -1415,6 +1462,7 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                     $gName = basename($groupPath);
                     AuthService::deleteGroup($basePath, $gName);
                     AJXP_XMLWriter::header();
+                    AJXP_XMLWriter::sendMessage($mess["ajxp_conf.125"], null);
                     AJXP_XMLWriter::reloadDataNode();
                     AJXP_XMLWriter::close();
                 } else {
@@ -1560,6 +1608,12 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                 AJXP_XMLWriter::sendMessage($mess["ajxp_conf.97"], null);
                 AJXP_XMLWriter::close();
 
+
+            break;
+
+            case "generate_api_docs":
+
+                PydioSdkGenerator::analyzeRegistry();
 
             break;
 
@@ -1785,12 +1839,13 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
             if(!empty($test)) $nodeLabel = $test;
             $scheme = AuthService::getAuthScheme($userId);
             $nodeKey = "/data/$root/".$userId;
+            $roles = array_filter(array_keys($userObject->getRoles()), array($this, "filterReservedRoles"));
             $meta = array(
                 "isAdmin" => $mess[($isAdmin?"ajxp_conf.14":"ajxp_conf.15")],
                 "icon" => $icon.".png",
                 "auth_scheme" => ($scheme != null? $scheme : ""),
                 "rights_summary" => $rightsString,
-                "ajxp_roles" => implode(", ", array_keys($userObject->getRoles())),
+                "ajxp_roles" => implode(", ", $roles),
                 "ajxp_mime" => "user".(($userId!="guest"&&$userId!=$loggedUser->getId())?"_editable":"")
             );
             if(in_array($nodeKey, $this->currentBookmarks)) $meta = array_merge($meta, array("ajxp_bookmarked" => "true", "overlay_icon" => "bookmark.png"));
@@ -2253,7 +2308,9 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
     {
         $confStorage = ConfService::getConfStorageImpl();
         $user = $confStorage->createUserObject($userId);
-        //if($user->hasParent()) return $user;
+        if(!AuthService::canAdministrate($user)){
+            throw new Exception("Cannot update user data for ".$userId);
+        }
         if ($addOrRemove == "add") {
             $roleObject = AuthService::getRole($roleId);
             $user->addRole($roleObject);

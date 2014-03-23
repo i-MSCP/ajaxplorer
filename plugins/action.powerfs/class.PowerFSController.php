@@ -28,6 +28,12 @@ defined('AJXP_EXEC') or die('Access not allowed');
 class PowerFSController extends AJXP_Plugin
 {
 
+    public function performChecks(){
+        if(ShareCenter::currentContextIsLinkDownload()) {
+            throw new Exception("Disable during link download");
+        }
+    }
+
     public function switchAction($action, $httpVars, $fileVars)
     {
         if(!isSet($this->actions[$action])) return;
@@ -78,7 +84,7 @@ class PowerFSController extends AJXP_Plugin
                             $('download_form').submit();
                             $('download_form').get_action.value = 'download';
                         ";
-                        AJXP_XMLWriter::triggerBgJsAction($jsCode, "powerfs.3", true);
+                        AJXP_XMLWriter::triggerBgJsAction($jsCode, $mess["powerfs.3"], true);
                         AJXP_XMLWriter::triggerBgAction("reload_node", array(), "powerfs.2", true, 2);
                     }
                     AJXP_XMLWriter::close();
@@ -101,6 +107,7 @@ class PowerFSController extends AJXP_Plugin
             case "compress" :
             case "precompress" :
 
+                $archiveName = AJXP_Utils::sanitize(AJXP_Utils::decodeSecureMagic($httpVars["archive_name"]), AJXP_SANITIZE_FILENAME);
                 if (!ConfService::currentContextIsCommandLine() && ConfService::backgroundActionsSupported()) {
                     $opeId = substr(md5(time()),0,10);
                     $httpVars["ope_id"] = $opeId;
@@ -108,7 +115,7 @@ class PowerFSController extends AJXP_Plugin
                     AJXP_XMLWriter::header();
                     $bgParameters = array(
                         "dir" => $dir,
-                        "archive_name"  => $httpVars["archive_name"],
+                        "archive_name"  => $archiveName,
                         "on_end" => (isSet($httpVars["on_end"])?$httpVars["on_end"]:"reload"),
                         "ope_id" => $opeId
                     );
@@ -131,7 +138,8 @@ class PowerFSController extends AJXP_Plugin
                 $replaceSearch = array($rootDir, "\\");
                 $replaceReplace = array("", "/");
                 foreach ($selection->getFiles() as $selectionFile) {
-                    $args[] = '"'.substr($selectionFile, strlen($dir)+($dir=="/"?0:1)).'"';
+                    $baseFile = $selectionFile;
+                    $args[] = escapeshellarg(substr($selectionFile, strlen($dir)+($dir=="/"?0:1)));
                     $selectionFile = fsAccessWrapper::getRealFSReference($urlBase.$selectionFile);
                     $todo[] = ltrim(str_replace($replaceSearch, $replaceReplace, $selectionFile), "/");
                     if (is_dir($selectionFile)) {
@@ -140,17 +148,23 @@ class PowerFSController extends AJXP_Plugin
                             $todo[] = str_replace($replaceSearch, $replaceReplace, $name);
                         }
                     }
+                    if(trim($baseFile, "/") == ""){
+                        // ROOT IS SELECTED, FIX IT
+                        $args = array(escapeshellarg(basename($rootDir)));
+                        $rootDir = dirname($rootDir);
+                        break;
+                    }
                 }
                 $cmdSeparator = ((PHP_OS == "WIN32" || PHP_OS == "WINNT" || PHP_OS == "Windows")? "&" : ";");
-                $archiveName = $httpVars["archive_name"];
+                //$archiveName = SystemTextEncoding::fromUTF8($httpVars["archive_name"]);
                 if (!$compressLocally) {
                     $archiveName = AJXP_Utils::getAjxpTmpDir()."/".$httpVars["ope_id"]."_".$archiveName;
                 }
                 chdir($rootDir);
-                $cmd = "zip -r ".escapeshellarg($archiveName)." ".implode(" ", $args);
+                $cmd = $this->getFilteredOption("ZIP_PATH")." -r ".escapeshellarg($archiveName)." ".implode(" ", $args);
                 $fsDriver = AJXP_PluginsService::getInstance()->getUniqueActivePluginForType("access");
                 $c = $fsDriver->getConfigs();
-                if (!isSet($c["SHOW_HIDDEN_FILES"]) || $c["SHOW_HIDDEN_FILES"] == false) {
+                if ((!isSet($c["SHOW_HIDDEN_FILES"]) || $c["SHOW_HIDDEN_FILES"] == false) && stripos(PHP_OS, "win") === false) {
                     $cmd .= " -x .\*";
                 }
                 $cmd .= " ".$cmdSeparator." echo ZIP_FINISHED";

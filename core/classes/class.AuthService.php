@@ -426,7 +426,7 @@ class AuthService
                     }
                 }
             }
-            if(!empty($dashId)) $rootRole->setParameterValue("core.conf", "DEFAULT_REPOSITORY", $dashId);
+            if(!empty($dashId)) $rootRole->setParameterValue("core.conf", "DEFAULT_START_REPOSITORY", $dashId);
             $paramNodes = AJXP_PluginsService::searchAllManifests("//server_settings/param[@scope]", "node", false, false, true);
             if (is_array($paramNodes) && count($paramNodes)) {
                 foreach ($paramNodes as $xmlNode) {
@@ -816,8 +816,21 @@ class AuthService
         return true;
     }
 
+    private static $groupFiltering = true;
+
+    /**
+     * @param boolean $boolean
+     */
+    public static function setGroupFiltering($boolean){
+        self::$groupFiltering = $boolean;
+    }
+
     public static function filterBaseGroup($baseGroup)
     {
+        if(!self::$groupFiltering) {
+            return $baseGroup;
+        }
+
         $u = self::getLoggedUser();
         // make sure it starts with a slash.
         $baseGroup = "/".ltrim($baseGroup, "/");
@@ -869,12 +882,7 @@ class AuthService
      */
     public static function listUsers($baseGroup = "/", $regexp = null, $offset = -1, $limit = -1, $cleanLosts = true)
     {
-        $searchAll = ConfService::getCoreConf("CROSSUSERS_ALLGROUPS", "conf");
-        $displayAll = ConfService::getCoreConf("CROSSUSERS_ALLGROUPS_DISPLAY", "conf");
-        if( ($regexp == null && !$displayAll) || ($regexp != null && !$searchAll) ){
-            $baseGroup = self::filterBaseGroup($baseGroup);
-        }
-        //$baseGroup = self::filterBaseGroup($baseGroup);
+        $baseGroup = self::filterBaseGroup($baseGroup);
         $authDriver = ConfService::getAuthDriverImpl();
         $confDriver = ConfService::getConfStorageImpl();
         $allUsers = array();
@@ -913,10 +921,10 @@ class AuthService
         return $authDriver->supportsUsersPagination();
     }
 
-    public static function authCountUsers($baseGroup="/", $regexp="")
+    public static function authCountUsers($baseGroup="/", $regexp="", $filterProperty = null, $filterValue = null)
     {
         $authDriver = ConfService::getAuthDriverImpl();
-        return $authDriver->getUsersCount($baseGroup, $regexp);
+        return $authDriver->getUsersCount($baseGroup, $regexp, $filterProperty, $filterValue);
     }
 
     public static function getAuthScheme($userName)

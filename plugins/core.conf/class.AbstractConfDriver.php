@@ -586,7 +586,7 @@ abstract class AbstractConfDriver extends AJXP_Plugin
                 $i = 0;
                 while (isSet($httpVars["pref_name_".$i]) && isSet($httpVars["pref_value_".$i])) {
                     $prefName = AJXP_Utils::sanitize($httpVars["pref_name_".$i], AJXP_SANITIZE_ALPHANUM);
-                    $prefValue = AJXP_Utils::sanitize($httpVars["pref_value_".$i]);
+                    $prefValue = AJXP_Utils::sanitize(SystemTextEncoding::magicDequote($httpVars["pref_value_".$i]));
                     if($prefName == "password") continue;
                     if ($prefName != "pending_folder" && $userObject == null) {
                         $i++;
@@ -651,8 +651,8 @@ abstract class AbstractConfDriver extends AJXP_Plugin
                                 $pluginId = $parentNode->nodeName.".".$parentNode->getAttribute("name");
                             }
                             $name = $xmlNode->getAttribute("name");
-                            if (isSet($data[$name]) || $data[$name] == "") {
-                                if ($data[$name] == "" || $userObject->parentRole == null || $userObject->parentRole->filterParameterValue($pluginId, $name, AJXP_REPO_SCOPE_ALL, "") != $data[$name]) {
+                            if (isSet($data[$name]) || $data[$name] === "") {
+                                if ($data[$name] === "" || $userObject->parentRole == null || $userObject->parentRole->filterParameterValue($pluginId, $name, AJXP_REPO_SCOPE_ALL, "") != $data[$name]) {
                                     $userObject->personalRole->setParameterValue($pluginId, $name, $data[$name]);
                                     $rChanges = true;
                                 }
@@ -905,10 +905,17 @@ abstract class AbstractConfDriver extends AJXP_Plugin
                 $existingOnly = isSet($httpVars["existing_only"]) && $httpVars["existing_only"] == "true";
                 if(!empty($crtValue)) $regexp = '^'.preg_quote($crtValue);
                 else $regexp = null;
-                $limit = min(ConfService::getCoreConf("USERS_LIST_COMPLETE_LIMIT", "conf"), 20);
-                $allUsers = AuthService::listUsers("/", $regexp, 0, $limit, false);
+                $limit = intval(ConfService::getCoreConf("USERS_LIST_COMPLETE_LIMIT", "conf"));
+                $searchAll = ConfService::getCoreConf("CROSSUSERS_ALLGROUPS", "conf");
+                $displayAll = ConfService::getCoreConf("CROSSUSERS_ALLGROUPS_DISPLAY", "conf");
+                $baseGroup = "/";
+                if( ($regexp == null && !$displayAll) || ($regexp != null && !$searchAll) ){
+                    $baseGroup = AuthService::filterBaseGroup("/");
+                }
+                AuthService::setGroupFiltering(false);
+                $allUsers = AuthService::listUsers($baseGroup, $regexp, 0, $limit, false);
                 if (!$usersOnly) {
-                    $allGroups = AuthService::listChildrenGroups("/");
+                    $allGroups = AuthService::listChildrenGroups($baseGroup);
                 }
                 $users = "";
                 $index = 0;
@@ -952,7 +959,7 @@ abstract class AbstractConfDriver extends AJXP_Plugin
                 if (strlen($users)) {
                     print("<ul>".$users."</ul>");
                 }
-
+                AuthService::setGroupFiltering(true);
 
                 break;
 

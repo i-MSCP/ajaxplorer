@@ -37,7 +37,7 @@ Effect.CSS_ANIMATE = function(effectName, element, options){
             originalMethod = 'Appear';
             break;
         case "MessageAppear":
-            className = 'long fadeInUpBig';
+            className = 'fadeInUpBig';
             endStyle = {opacity: 1};
             originalMethod ='Appear';
             element.setOpacity(0);
@@ -62,7 +62,7 @@ Effect.CSS_ANIMATE = function(effectName, element, options){
 
     if(Effect.CSS_SUPPORTED){
 
-        ["webkitAnimationEnd", "mozAnimationEnd", "oAnimationEnd", "animationEnd"].map(
+        ["webkitAnimationEnd", "mozAnimationEnd", "oAnimationEnd", "animationEnd", "transitionend", "animationend", "oanimationend", "mozanimationend"].map(
             function(event){
                 element.observeOnce(event, function(){
                     ('animated ' + className).split(" ").map(function(cName){

@@ -64,10 +64,12 @@ define("ADMIN_PASSWORD", "admin");
 // example in log.serial. Do not forget the trailing slash
 // define("AJXP_FORCE_LOGPATH", "/var/log/ajaxplorer/");
 
+
 // DEBUG OPTIONS
-define("AJXP_CLIENT_DEBUG", false);
-define("AJXP_SERVER_DEBUG", false);
-define("AJXP_SKIP_CACHE", false);
+define("AJXP_CLIENT_DEBUG"  ,	false);
+define("AJXP_SERVER_DEBUG"  ,	false);
+define("AJXP_SKIP_CACHE"    ,   false);
+
 
 // PBKDF2 CONSTANTS FOR A SECURE STORAGE OF PASSWORDS
 // These constants may be changed without breaking existing hashes.

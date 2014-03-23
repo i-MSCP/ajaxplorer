@@ -34,6 +34,28 @@ class UserDashboardDriver extends AbstractAccessDriver
         require_once AJXP_INSTALL_PATH."/".AJXP_PLUGINS_FOLDER."/action.share/class.ShareCenter.php";
     }
 
+    public function parseSpecificContributions(&$contribNode){
+        parent::parseSpecificContributions($contribNode);
+        if($contribNode->nodeName == "client_configs"){
+            $actionXpath=new DOMXPath($contribNode->ownerDocument);
+            $gettingStartedList = $actionXpath->query('component_config/additional_tab[@id="tutorials_pane"]', $contribNode);
+            if(!$gettingStartedList->length) return ;
+            if($this->getFilteredOption("ENABLE_GETTING_STARTED") === false){
+                $compConfig = $gettingStartedList->item(0)->parentNode;
+                $contribNode->removeChild($compConfig);
+            }else{
+                $cdata = $gettingStartedList->item(0)->firstChild;
+                $keys = array("URL_APP_IOSAPPSTORE", "URL_APP_ANDROID", "URL_APP_SYNC_WIN", "URL_APP_SYNC_MAC");
+                $values = array();
+                foreach($keys as $k) $values[] = $this->getFilteredOption($k);
+                $newData = str_replace($keys, $values, $cdata->nodeValue);
+                $newCData = $contribNode->ownerDocument->createCDATASection($newData);
+                $gettingStartedList->item(0)->appendChild($newCData);
+                $gettingStartedList->item(0)->replaceChild($newCData, $cdata);
+            }
+        }
+    }
+
     public function switchAction($action, $httpVars, $fileVars)
     {
         if(!isSet($this->actions[$action])) return;
@@ -101,7 +123,7 @@ class UserDashboardDriver extends AbstractAccessDriver
                     } else if ($strippedDir == "repositories") {
                         $this->listRepositories();
                     } else if ($strippedDir == "files") {
-                        $this->listSharedFiles();
+                        $this->listSharedFiles("files");
                     }
                     AJXP_XMLWriter::close();
                 } else {
@@ -130,12 +152,17 @@ class UserDashboardDriver extends AbstractAccessDriver
                 $selection->initFromHttpVars($httpVars);
                 $files = $selection->getFiles();
                 AJXP_XMLWriter::header();
+                $minisites = $this->listSharedFiles("minisites");
                 foreach ($files as $index => $element) {
                     $element = basename($element);
                     $ar = explode("shared_", $mime);
                     $mime = array_pop($ar);
+                    if($mime == "repository" && isSet($minisites[$element])){
+                        $mime = "minisite";
+                        $element = $minisites[$element];
+                    }
                     ShareCenter::deleteSharedElement($mime, $element, $loggedUser);
-                    if($mime == "repository") $out = $mess["ajxp_conf.59"];
+                    if($mime == "repository" || $mime == "minisite") $out = $mess["ajxp_conf.59"];
                     else if($mime == "user") $out = $mess["ajxp_conf.60"];
                     else if($mime == "file") $out = $mess["user_dash.13"];
                 }
@@ -179,9 +206,14 @@ class UserDashboardDriver extends AbstractAccessDriver
         return;
     }
 
-    public function listSharedFiles()
+    /**
+     * @param string $mode
+     * @return array|void
+     */
+    public function listSharedFiles($mode = "files")
     {
-        AJXP_XMLWriter::sendFilesListComponentConfig('<columns switchDisplayMode="list" switchGridMode="filelist">
+        if($mode == "files"){
+            AJXP_XMLWriter::sendFilesListComponentConfig('<columns switchDisplayMode="list" switchGridMode="filelist">
                 <column messageId="user_dash.4" attributeName="ajxp_label" sortType="String" width="20%"/>
                 <column messageId="user_dash.17" attributeName="download_url" sortType="String" width="20%"/>
                 <column messageId="user_dash.20" attributeName="download_count" sortType="String" width="2%"/>
@@ -189,6 +221,7 @@ class UserDashboardDriver extends AbstractAccessDriver
                 <column messageId="user_dash.6" attributeName="password" sortType="String" width="5%"/>
                 <column messageId="user_dash.7" attributeName="expiration" sortType="String" width="5%"/>
             </columns>');
+        }
         $dlFolder = ConfService::getCoreConf("PUBLIC_DOWNLOAD_FOLDER");
         if(!is_dir($dlFolder)) return ;
         $files = glob($dlFolder."/*.php");
@@ -203,28 +236,39 @@ class UserDashboardDriver extends AbstractAccessDriver
             $fullUrl = AJXP_Utils::detectServerURL() . dirname($_SERVER['REQUEST_URI']);
             $downloadBase = str_replace("\\", "/", $fullUrl.rtrim(str_replace(AJXP_INSTALL_PATH, "", $dlFolder), "/"));
         }
-
+        $minisites = array();
         foreach ($files as $file) {
             $ar = explode(".", basename($file));
             $id = array_shift($ar);
             if($ar[0] != "php") continue;
             //if(strlen($id) != 32) continue;
             $publicletData = ShareCenter::loadPublicletData($id);
-            if (isset($publicletData["OWNER_ID"]) && $publicletData["OWNER_ID"] != $userId) {
-                continue;
+            if($mode == "files"){
+                if(isSet($publicletData["AJXP_APPLICATION_BASE"]) || isSet($publicletData["TRAVEL_PATH_TO_ROOT"])
+                    ||  (isset($publicletData["OWNER_ID"]) && $publicletData["OWNER_ID"] != $userId)
+                    || empty($publicletData["FILE_PATH"])
+                    ){
+                    continue;
+                }
+                $expired = ($publicletData["EXPIRE_TIME"]!=0?($publicletData["EXPIRE_TIME"]<time()?true:false):false);
+                if(!is_a($publicletData["REPOSITORY"], "Repository")) continue;
+                AJXP_XMLWriter::renderNode(str_replace(".php", "", basename($file)), "".SystemTextEncoding::toUTF8($publicletData["REPOSITORY"]->getDisplay()).":/".SystemTextEncoding::toUTF8($publicletData["FILE_PATH"]), true, array(
+                        "icon"		=> "html.png",
+                        "password" => ($publicletData["PASSWORD"]!=""?$this->metaIcon("key").$publicletData["PASSWORD"]:""),
+                        "expiration" => ($publicletData["EXPIRE_TIME"]!=0?($expired?$this->metaIcon("time"):"").date($mess["date_format"], $publicletData["EXPIRE_TIME"]):""),
+                        "download_count" => !empty($publicletData["DOWNLOAD_COUNT"])?$this->metaIcon("download-alt").$publicletData["DOWNLOAD_COUNT"]:"",
+                        "download_limit" => ($publicletData["DOWNLOAD_LIMIT"] == 0 ? "" : $this->metaIcon("cloud-download").$publicletData["DOWNLOAD_LIMIT"] ),
+                        "integrity"  => (!$publicletData["SECURITY_MODIFIED"]?$mess["user_dash.15"]:$mess["user_dash.16"]),
+                        "download_url" => $this->metaIcon("link").$downloadBase . "/".basename($file),
+                        "ajxp_mime" => "shared_file")
+                );
+            }else if($mode == "minisites"){
+                if(!isSet($publicletData["AJXP_APPLICATION_BASE"]) && !isSet($publicletData["TRAVEL_PATH_TO_ROOT"])) continue;
+                $minisites[$publicletData["REPOSITORY"]] = $id;
             }
-            $expired = ($publicletData["EXPIRE_TIME"]!=0?($publicletData["EXPIRE_TIME"]<time()?true:false):false);
-            if(!is_a($publicletData["REPOSITORY"], "Repository")) continue;
-            AJXP_XMLWriter::renderNode(str_replace(".php", "", basename($file)), "".SystemTextEncoding::toUTF8($publicletData["REPOSITORY"]->getDisplay()).":/".SystemTextEncoding::toUTF8($publicletData["FILE_PATH"]), true, array(
-                "icon"		=> "html.png",
-                "password" => ($publicletData["PASSWORD"]!=""?$this->metaIcon("key").$publicletData["PASSWORD"]:""),
-                "expiration" => ($publicletData["EXPIRE_TIME"]!=0?($expired?$this->metaIcon("time"):"").date($mess["date_format"], $publicletData["EXPIRE_TIME"]):""),
-                "download_count" => !empty($publicletData["DOWNLOAD_COUNT"])?$this->metaIcon("download-alt").$publicletData["DOWNLOAD_COUNT"]:"",
-                "download_limit" => ($publicletData["DOWNLOAD_LIMIT"] == 0 ? "" : $this->metaIcon("cloud-download").$publicletData["DOWNLOAD_LIMIT"] ),
-                "integrity"  => (!$publicletData["SECURITY_MODIFIED"]?$mess["user_dash.15"]:$mess["user_dash.16"]),
-                "download_url" => $this->metaIcon("link").$downloadBase . "/".basename($file),
-                "ajxp_mime" => "shared_file")
-            );
+        }
+        if($mode == "minisites"){
+            return $minisites;
         }
     }
 
@@ -327,36 +371,38 @@ class UserDashboardDriver extends AbstractAccessDriver
         $repos = ConfService::getRepositoriesList("all");
         AJXP_XMLWriter::sendFilesListComponentConfig('<columns switchGridMode="filelist"><column messageId="ajxp_conf.8" attributeName="ajxp_label" sortType="String"/><column messageId="user_dash.9" attributeName="parent_label" sortType="String"/><column messageId="user_dash.9" attributeName="repo_accesses" sortType="String"/></columns>');
         $repoArray = array();
-        $childRepos = array();
         $loggedUser = AuthService::getLoggedUser();
-        $users = AuthService::listUsers();
+
+        $searchAll = ConfService::getCoreConf("CROSSUSERS_ALLGROUPS", "conf");
+        $displayAll = ConfService::getCoreConf("CROSSUSERS_ALLGROUPS_DISPLAY", "conf");
+        if($searchAll || $displayAll){
+            $baseGroup = "/";
+        }else{
+            $baseGroup = AuthService::filterBaseGroup("/");
+        }
+        AuthService::setGroupFiltering(false);
+        $users = AuthService::listUsers($baseGroup);
+
+        $minisites = $this->listSharedFiles("minisites");
+
         foreach ($repos as $repoIndex => $repoObject) {
             if($repoObject->getAccessType() == "ajxp_conf") continue;
             if (!$repoObject->hasOwner() || $repoObject->getOwner() != $loggedUser->getId()) {
                 continue;
             }
             if(is_numeric($repoIndex)) $repoIndex = "".$repoIndex;
-            $name = AJXP_Utils::xmlEntities(SystemTextEncoding::toUTF8($repoObject->getDisplay()));
+            $name = (isSet($minisites[$repoIndex]) ? "[Minisite] ":""). AJXP_Utils::xmlEntities(SystemTextEncoding::toUTF8($repoObject->getDisplay()));
             $repoArray[$name] = $repoIndex;
         }
         // Sort the list now by name
         ksort($repoArray);
-        // Append child repositories
-        $sortedArray = array();
         foreach ($repoArray as $name => $repoIndex) {
-            $sortedArray[$name] = $repoIndex;
-            if (isSet($childRepos[$repoIndex]) && is_array($childRepos[$repoIndex])) {
-                foreach ($childRepos[$repoIndex] as $childData) {
-                    $sortedArray[$childData["name"]] = $childData["index"];
-                }
-            }
-        }
-        foreach ($sortedArray as $name => $repoIndex) {
             $repoObject =& $repos[$repoIndex];
             $repoAccesses = array();
             foreach ($users as $userId => $userObject) {
                 if($userObject->getId() == $loggedUser->getId()) continue;
                 $label = $userObject->personalRole->filterParameterValue("core.conf", "USER_DISPLAY_NAME", AJXP_REPO_SCOPE_ALL, $userId);
+                if(empty($label)) $label = $userId;
                 $acl = $userObject->mergedRole->getAcl($repoObject->getId());
                 if(!empty($acl)) $repoAccesses[] = $label. " (".$acl.")";
             }

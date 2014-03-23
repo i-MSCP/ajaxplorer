@@ -26,6 +26,16 @@ Class.create("UserDashboardHome", AjxpPane, {
 
         $super(oFormObject, editorOptions);
 
+        var dashLogo = ajaxplorer.getPluginConfigs("guidriver").get("CUSTOM_DASH_LOGO");
+        if(dashLogo){
+            var url;
+            if(dashLogo.indexOf('plugins/') === 0){
+                url = dashLogo;
+            }else{
+                url = window.ajxpServerAccessPath + "&get_action=get_global_binary_param&binary_id=" + dashLogo;
+            }
+            oFormObject.down("#logo_div").down("img").src = url;
+        }
         oFormObject.down("#welcome").update( MessageHash['user_dash.40'].replace('%s', ajaxplorer.user.getPreference("USER_DISPLAY_NAME") || ajaxplorer.user.id));
 
         var wsElement = oFormObject.down('#workspaces_list');
@@ -50,11 +60,9 @@ Class.create("UserDashboardHome", AjxpPane, {
             ajaxplorer.triggerRepositoryChange(repoId);
         };
 
-        ajaxplorer.user.repositories.each(function(pair){
-            var repoId = pair.key;
-            var repoObject = pair.value;
-            if(repoObject.getAccessType() == 'ajxp_user') return;
+        var renderElement = function(repoObject){
 
+            var repoId = repoObject.getId();
             var repoEl = new Element('li').update("<h3>"+repoObject.getLabel() + "</h3><h4>" + repoObject.getDescription()+"</h4>");
             wsElement.insert(repoEl);
             var select = function(e){
@@ -68,11 +76,35 @@ Class.create("UserDashboardHome", AjxpPane, {
             };
             repoEl.observe("click", select);
             attachMobilTouchForClick(repoEl, select);
+            disableTextSelection(repoEl);
             repoEl.observe("dblclick", function(e){
                 select(e);
+                Event.findElement(e, "li").setOpacity(0.7);
                 switchToRepo(repoId);
             });
+
+        };
+
+        var myWS = ajaxplorer.user.repositories.filter(function(pair){
+            return (pair.value.owner === '' && pair.value.getAccessType() != 'ajxp_user');
+        }).sortBy(function(pair){
+            return (pair.value.getLabel());
         });
+        var sharedWS = ajaxplorer.user.repositories.filter(function(pair){
+            return (pair.value.owner !== '' && pair.value.getAccessType() != 'ajxp_user');
+        }).sortBy(function(pair){
+            return (pair.value.getLabel());
+        });
+
+        if(myWS.size()){
+            wsElement.insert(new Element('li', {className:'ws_selector_title'}).update("<h3>"+MessageHash[468]+"</h3>"));
+            myWS.each(function(pair){renderElement(pair.value);});
+        }
+
+        if(sharedWS.size()){
+            wsElement.insert(new Element('li', {className:'ws_selector_title'}).update("<h3>"+MessageHash[469]+"</h3>"));
+            sharedWS.each(function(pair){renderElement(pair.value);});
+        }
 
         oFormObject.down('#go_to_ws').observe("click", function(e){
             var target = e.target;
@@ -141,11 +173,18 @@ Class.create("UserDashboardHome", AjxpPane, {
         }
 
         if(ajaxplorer.actionBar.getActionByName("logout")){
-            oFormObject.down("#welcome").insert(new Element("span", {id:"disconnect_link"}).update(" (<span>"+ajaxplorer.actionBar.getActionByName("logout").options.text.toLowerCase()+"</span>)"));
+            oFormObject.down("#welcome").insert(new Element("span", {id:"disconnect_link"}).update(" [<span>"+ajaxplorer.actionBar.getActionByName("logout").options.text.toLowerCase()+"</span>]"));
             oFormObject.down('#disconnect_link').observe("click", function(e){
                 ajaxplorer.actionBar.fireAction("logout");
             });
         }
+
+        if(ajaxplorer.getPluginConfigs('ajxpdriver[@id=\'access.ajxp_user\']').get("ENABLE_GETTING_STARTED")){
+            oFormObject.down("#welcome").insert(". " + MessageHash["user_dash.55"].replace("<a>", "<a id='get_started_link' href='#' onclick='javascript:$(\"userdashboard_main_tab\").ajxpPaneObject.switchTabulator(\"tutorials\")'>"));
+        }else{
+            oFormObject.down("#welcome").insert(".");
+        }
+
     },
 
     resize: function($super, size){

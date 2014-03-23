@@ -751,12 +751,10 @@ class ShareCenter extends AJXP_Plugin
         $messages = array();
         if (is_file($pDir."/res/i18n/".$language.".php")) {
             include($pDir."/res/i18n/".$language.".php");
-            if (isSet($mess)) {
-                $messages = $mess;
-            }
         } else {
             include($pDir."/res/i18n/en.php");
         }
+        if (isSet($mess)) $messages = $mess;
         $sTitle = sprintf($messages[1], ConfService::getCoreConf("APPLICATION_TITLE"));
         $sLegend = $messages[20];
 
@@ -808,6 +806,7 @@ class ShareCenter extends AJXP_Plugin
         $html = AJXP_XMLWriter::replaceAjxpXmlKeywords($html);
         $html = str_replace("AJXP_MINISITE_LOGO", $minisiteLogo, $html);
         $html = str_replace("AJXP_APPLICATION_TITLE", ConfService::getCoreConf("APPLICATION_TITLE"), $html);
+        $html = str_replace("PYDIO_APP_TITLE", ConfService::getCoreConf("APPLICATION_TITLE"), $html);
         $html = str_replace("AJXP_START_REPOSITORY", $repository, $html);
         $html = str_replace("AJXP_REPOSITORY_LABEL", ConfService::getRepositoryById($repository)->getDisplay(), $html);
 
@@ -867,17 +866,17 @@ class ShareCenter extends AJXP_Plugin
             exit();
         }
         // Load language messages
-        $language = "en";
+        $language = ConfService::getLanguage();
         if (isSet($_GET["lang"])) {
-            $language = $_GET["lang"];
+            $language = basename($_GET["lang"]);
         }
         $messages = array();
         if (is_file(dirname(__FILE__)."/res/i18n/".$language.".php")) {
             include(dirname(__FILE__)."/res/i18n/".$language.".php");
-            if(isSet($mess)) $messages = $mess;
         } else {
             include(dirname(__FILE__)."/res/i18n/en.php");
         }
+        if(isSet($mess)) $messages = $mess;
 
         $AJXP_LINK_HAS_PASSWORD = false;
         $AJXP_LINK_BASENAME = SystemTextEncoding::toUTF8(basename($data["FILE_PATH"]));
@@ -1520,6 +1519,10 @@ class ShareCenter extends AJXP_Plugin
         }
         $publicletData["PUBLICLET_PATH"] = $file;
         return $publicletData;
+    }
+
+    public static function currentContextIsLinkDownload(){
+        return (isSet($_GET["dl"]) && isSet($_GET["dl"]) == "true");
     }
 
 }

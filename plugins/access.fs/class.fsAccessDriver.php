@@ -57,7 +57,7 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWrapperProvider
         $create = $this->repository->getOption("CREATE");
         $path = $this->repository->getOption("PATH");
         $recycle = $this->repository->getOption("RECYCLE_BIN");
-        $chmod = $this->repository->getOption("CHMOD");
+        $chmod = $this->repository->getOption("CHMOD_VALUE");
         $wrapperData = $this->detectStreamWrapper(true);
         $this->wrapperClassName = $wrapperData["classname"];
         $this->urlBase = $wrapperData["protocol"]."://".$this->repository->getId();
@@ -386,7 +386,7 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWrapperProvider
                 if (isSet($httpVars["encode"]) && $httpVars["encode"] == "base64") {
                     $code = base64_decode($code);
                 } else {
-                    $code=str_replace("&lt;","<",$code);
+                    $code=str_replace("&lt;","<",SystemTextEncoding::magicDequote($code));
                 }
                 $fileName = $this->urlBase.$file;
                 $currentNode = new AJXP_Node($fileName);
@@ -568,7 +568,11 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWrapperProvider
             case "mkfile";
 
                 $messtmp="";
-                $filename=AJXP_Utils::decodeSecureMagic($httpVars["filename"], AJXP_SANITIZE_FILENAME);
+                if(empty($httpVars["filename"]) && isSet($httpVars["node"])){
+                    $filename=AJXP_Utils::decodeSecureMagic($httpVars["node"], AJXP_SANITIZE_FILENAME);
+                }else{
+                    $filename=AJXP_Utils::decodeSecureMagic($httpVars["filename"], AJXP_SANITIZE_FILENAME);
+                }
                 $filename = substr($filename, 0, ConfService::getCoreConf("NODENAME_MAX_LENGTH"));
                 $this->filterUserSelectionToHidden(array($filename));
                 $content = "";
@@ -619,7 +623,7 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWrapperProvider
                 $repoData = array(
                     'base_url' => $this->urlBase,
                     'wrapper_name' => $this->wrapperClassName,
-                    'chmod'     => $this->repository->getOption('CHMOD'),
+                    'chmod'     => $this->repository->getOption('CHMOD_VALUE'),
                     'recycle'     => $this->repository->getOption('RECYCLE_BIN')
                 );
                 $this->logDebug("Upload Files Data", $fileVars);
@@ -1522,7 +1526,7 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWrapperProvider
         $repoData = array(
             'base_url' => $this->urlBase,
             'wrapper_name' => $this->wrapperClassName,
-            'chmod'     => $this->repository->getOption('CHMOD'),
+            'chmod'     => $this->repository->getOption('CHMOD_VALUE'),
             'recycle'     => $this->repository->getOption('RECYCLE_BIN')
         );
 
@@ -1546,7 +1550,7 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWrapperProvider
     {
         $nom_fic=basename($filePath);
         $mess = ConfService::getMessages();
-        $filename_new=AJXP_Utils::sanitize($filename_new, AJXP_SANITIZE_FILENAME);
+        $filename_new=AJXP_Utils::sanitize(SystemTextEncoding::magicDequote($filename_new), AJXP_SANITIZE_FILENAME);
         $filename_new = substr($filename_new, 0, ConfService::getCoreConf("NODENAME_MAX_LENGTH"));
         $old=$this->urlBase."/$filePath";
         if (!$this->isWriteable($old)) {
@@ -1643,7 +1647,7 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWrapperProvider
         $repoData = array(
             'base_url' => $this->urlBase,
             'wrapper_name' => $this->wrapperClassName,
-            'chmod'     => $this->repository->getOption('CHMOD'),
+            'chmod'     => $this->repository->getOption('CHMOD_VALUE'),
             'recycle'     => $this->repository->getOption('RECYCLE_BIN')
         );
         $fp=fopen($this->urlBase."$crtDir/$newFileName","w");
@@ -1667,7 +1671,7 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWrapperProvider
         $repoData = array(
             'base_url' => $this->urlBase,
             'wrapper_name' => $this->wrapperClassName,
-            'chmod'     => $this->repository->getOption('CHMOD'),
+            'chmod'     => $this->repository->getOption('CHMOD_VALUE'),
             'recycle'     => $this->repository->getOption('RECYCLE_BIN')
         );
         $mess = ConfService::getMessages();

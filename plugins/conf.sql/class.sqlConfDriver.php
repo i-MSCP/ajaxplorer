@@ -130,17 +130,16 @@ class sqlConfDriver extends AbstractConfDriver
         $repo->uuid = $result['uuid'];
         $repo->setOwnerData($result['parent_uuid'], $result['owner_user_id'], $result['child_user_id']);
         $repo->path = $result['path'];
-        $repo->create = $result['bcreate'];
-        $repo->writeable = $result['writeable'];
-        $repo->writeable = true;
-        $repo->enabled = $result['enabled'];
+        $repo->create = (bool) $result['bcreate'];
+        $repo->writeable = (bool) $result['writeable'];
+        $repo->enabled = (bool) $result['enabled'];
         $repo->recycle = "";
         $repo->setSlug($result['slug']);
         if (isSet($result['groupPath']) && !empty($result['groupPath'])) {
             $repo->setGroupPath($result['groupPath']);
         }
-        $repo->isTemplate = intval($result['isTemplate']) == 1 ? true : false;
-        $repo->setInferOptionsFromParent(intval($result['inferOptionsFromParent']) == 1 ? true : false);
+        $repo->isTemplate = (bool) $result['isTemplate'];
+        $repo->setInferOptionsFromParent((bool) $result['inferOptionsFromParent']);
 
         foreach ($options_result as $k => $v) {
             if (strpos($v, '$phpserial$') !== false && strpos($v, '$phpserial$') === 0) {
@@ -172,13 +171,13 @@ class sqlConfDriver extends AbstractConfDriver
                 'display'                   => $repository->getDisplay(),
                 'accessType'                => $repository->getAccessType(),
                 'recycle'                   => $repository->recycle,
-                'bcreate'                   => intval($repository->getCreate()),
+                'bcreate'                   => $repository->getCreate(),
                 'writeable'                 => $repository->isWriteable(),
                 'enabled'                   => $repository->isEnabled(),
                 'options'                   => $repository->options,
                 'groupPath'                 => $repository->getGroupPath(),
                 'slug'		                => $repository->getSlug(),
-                'isTemplate'                => $repository->isTemplate,
+                'isTemplate'                => (bool) $repository->isTemplate,
                 'inferOptionsFromParent'    => $repository->getInferOptionsFromParent()
         );
 
@@ -556,15 +555,14 @@ class sqlConfDriver extends AbstractConfDriver
     public function deleteGroup($groupPath)
     {
         // Delete users of this group, as well as subgroups
-        $ids = array();
-        $res = dibi::query("SELECT * FROM [ajxp_users] WHERE [groupPath] LIKE %like~ ORDER BY [login] ASC", $groupPath);
+        $res = dibi::query("SELECT * FROM [ajxp_users] WHERE [groupPath] LIKE %like~ OR [groupPath] = %s ORDER BY [login] ASC", $groupPath."/", $groupPath);
         $rows = $res->fetchAll();
         $subUsers = array();
         foreach ($rows as $row) {
             $this->deleteUser($row["login"], $subUsers);
             dibi::query("DELETE FROM [ajxp_users] WHERE [login] = %s", $row["login"]);
         }
-        dibi::query("DELETE FROM [ajxp_groups] WHERE [groupPath] LIKE %like~", $groupPath);
+        dibi::query("DELETE FROM [ajxp_groups] WHERE [groupPath] LIKE %like~ OR [groupPath] = %s", $groupPath."/", $groupPath);
         dibi::query('DELETE FROM [ajxp_roles] WHERE [role_id] = %s', 'AJXP_GRP_'.$groupPath);
     }
 
