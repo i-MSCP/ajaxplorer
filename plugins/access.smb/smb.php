@@ -187,7 +187,7 @@ class smb
         $descriptorspec = array(
             0 => array("pipe", "r"),  	// stdin is a pipe that the child will read from
             1 => array("pipe", "w"),  	// stdout is a pipe that the child will write to
-            2 => array("pipe", "w") 	// stderr is a pipe to write to
+            2 => array("pipe", "rw") 	// stderr is a pipe to write to
         );
         $env = null;
         if (defined('AJXP_LOCALE') && stripos(PHP_OS, "win") === false) {
@@ -216,6 +216,11 @@ class smb
         if (isset($output) && is_resource($output)) {
 
             while ($line = fgets ($output, 4096)) {
+			
+                if (PHP_OS == "WIN32" || PHP_OS == "WINNT" || PHP_OS == "Windows") {
+                    $line = SystemTextEncoding::fromUTF8($line);
+                    }
+
                 list ($tag, $regs, $i) = array ('skip', array (), array ());
                 reset ($regexp);
                 foreach ($regexp as $r => $t) if (preg_match ('/'.$r.'/', $line, $regs)) {
@@ -354,7 +359,7 @@ class smb
                         return null;
                     }
                     $p = explode ("\\", $pu['path']);
-                    $name = SystemTextEncoding::toUTF8($p[count($p)-1]);
+                    $name = $p[count($p)-1];
                     if (isset ($o['info'][$name])) {
                        $stat = smb::addstatcache ($url, $o['info'][$name]);
                     } else {

@@ -132,6 +132,11 @@ class AjaXplorerUpgrader
         $this->step ++;
     }
 
+    public function testUpgradeScripts(){
+        echo '<br>'.$this->upgradeDB();
+        echo '<br>'.$this->specificTask();
+    }
+
     public function checkDownloadFolder()
     {
         if (!is_dir($this->workingFolder)) {
@@ -314,7 +319,7 @@ class AjaXplorerUpgrader
             $errors = array();
 
             require_once(AJXP_BIN_FOLDER."/dibi.compact.php");
-            dibi::connect($test);
+            dibi::connect($conf);
             dibi::begin();
             foreach ($parts as $sqlPart) {
                 if(empty($sqlPart)) continue;
