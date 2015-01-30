@@ -8,7 +8,7 @@ $PLUGINS = array(
 		'OPTIONS' => array(
 			'REPOSITORIES_FILEPATH' => 'AJXP_DATA_PATH/plugins/conf.serial/repo.ser',
 			'ROLES_FILEPATH' => 'AJXP_DATA_PATH/plugins/auth.serial/roles.ser',
-			'USERS_DIRPATH' => 'AJXP_DATA_PATH/plugins/auth.serial',
+			'USERS_DIRPATH' => 'AJXP_DATA_PATH/plugins/auth.serial'
 		)
 	),
 	'AUTH_DRIVER' => array(
