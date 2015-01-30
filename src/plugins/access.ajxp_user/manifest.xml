@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ajxpdriver id="access.ajxp_user" label="CONF_MESSAGE[User Dashboard]" description="CONF_MESSAGE[User home dashboard, can be displayed before accessing to workspaces]"  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="file:../core.ajaxplorer/ajxp_registry.xsd">
+	<client_settings icon="plugins/access.ajxp_user/share.png">
+		<resources>
+			<i18n namespace="user_dash" path="plugins/access.ajxp_user/i18n" />
+            <css file="plugins/editor.ajxp_role/rolesEditor.css" />
+            <js className="UserProfileEditor" file="plugins/access.ajxp_user/class.UserProfileEditor.js" autoload="true"/>
+            <js className="WebDAVprefsEditor" file="plugins/access.ajxp_user/class.WebDAVprefsEditor.js" autoload="true"/>
+            <css file="plugins/access.ajxp_user/dashboard.css"/>
+		</resources>
+        <node_provider ajxpClass="EmptyNodeProvider" ajxpOptions="{}"/>
+	</client_settings>
+    <server_settings>
+        <global_param name="DASH_DISABLE_ADDRESS_BOOK" type="boolean" default="false" label="Disable Address Book" description="Do not display address book in user account panel."/>
+    </server_settings>
+	<registry_contributions>
+		<client_configs>
+            <template_part theme="umbra" ajxpId="sidebar_splitter" ajxpClass="AjxpPane" ajxpOptions='{"fit":"height","fake":"option"}'><![CDATA[
+                <div id="folderPane" ajxpClass="FoldersTree" ajxpOptions='{"display":"dz","replaceScroller":true}' ajxpPaneHeader="363" ajxpPaneIcon="view_tree.png" style="margin:20px;"></div>
+                <style>#sidebar_splitter{padding-bottom:20px;background-color:#A0C0A4;}</style>
+            ]]></template_part>
+            <template_part ajxpClass="AjxpPane" ajxpId="workspace_toolbar" ajxpOptions='{"fit":"none"}' theme="vision"><![CDATA[
+                <div id="search_container_settings" class="settings_search_container" style="display:none;" ajxpClass="SearchEngine" ajxpOptions='{"toggleResultsVisibility":"search_results_cont", "fitMarginBottom":20}'></div>
+                <style>
+                #workspace_toolbar, #global_toolbar{display:none;}
+                #browser{padding:0}
+                div.flat_tabulator span.toggleHeader{
+                    background-color: #e35d52;
+                }
+                .largeButton, .SF_input.SF_inlineButton{
+                    background-color: #e35d52;
+                }
+                .action_bar{
+                    background-color: #ebedf0;
+                    padding: 4px;
+                    border-left:1px solid #5C5C5C;
+                }
+                #user_profile_form, div.class-FetchedResultPane{
+                    border-left:1px solid #5C5C5C;
+                }
+                #account_pane .action_bar{
+                    text-align: right;
+                }
+                .action_bar a{
+                    background-color: #e35d52;
+                    margin-top:3px;
+                    cursor: pointer;
+                }
+                div.class-FetchedResultPane{
+                    background-color: #f8f8f8;
+                }
+                #buttons_bar{
+                    padding-bottom: 2px;
+                    text-align: right;
+                }
+                #buttons_bar a {
+                    padding-bottom: 0;
+                    height: 26px;
+                }
+                .action_bar span.actionbar_button_label{
+                    font-size: 11px;
+                }
+                .flat_tabulator div.panelHeader.tabulatorContainer{
+                    background-color: #30383A;
+                    padding-top: 10px;
+                }
+                .flat_tabulator span.toggleHeader:first-of-type {
+                    background-color: #e35d52 !important;
+                }
+                .flat_tabulator span.toggleHeader.toggleInactive {
+                    background-color: rgba(119, 119, 119, 0.35) !important;
+                }
+                </style>
+            ]]></template_part>
+            <template_part ajxpId="browser" ajxpClass="AjxpPane" ajxpOptions='{"fit":"height","fitParent":"ajxp_desktop", "fakeOptionUser":"true", "messageBoxReference":true}' theme="vision"><![CDATA[
+                <div id="userdashboard_main_tab" ajxpClass="AjxpTabulator" class="dashboard_main_pane flat_tabulator" ajxpOptions='{"fit":"height", "fitMarginBottom":0, "registerAsEditorOpener":false, "saveState":false,"events":{}, "defaultTabId": "parameters","tabInfos" : [{"id":"parameters","label":"user_dash.43", "title":"user_dash.43t","iconClass":"icon-cog", "element":"account_pane"},{"id":"info","label":"user_dash.46", "title":"user_dash.47","iconClass":"icon-book", "element":"my-users-pane"}]}'>
+                    <div id="my-users-pane" ajxpClass="AjxpPane" class="tabbed_editor">
+                        <div id="buttons_bar" class="action_bar" ajxpClass="ActionsToolbar" ajxpOptions='{"toolbarsList":["change","address_book"],"skipBubbling":true, "skipCarousel":true,"submenuOffsetTop":2}'></div>
+                        <div id="address_book" ajxpClass="FetchedResultPane" ajxpOptions='{"updateGlobalContext":true,"nodeProviderProperties":{"get_action":"ls","dir":"users"}, "displayMode":"detail","replaceScroller":true, "fit":"height", "fitParent":"userdashboard_main_tab", "fitMarginBottom":0, "cellPaddingCorrection":6, "iconBgPosition" : "5px 4px"}'></div>
+                    </div>
+                    <div id="account_pane" ajxpClass="UserProfileEditor" class="tabbed_editor">
+                        <div class="action_bar">
+                            <div class="toolbarGroup"></div>
+                        </div>
+                        <div id="user_profile_form"></div>
+                    </div>
+                </div>
+                <script>
+                    document.observeOnce("ajaxplorer:context_changed", function(){
+                        try{
+                            $("browser").ajxpPaneObject.resize();
+                        }catch(e){}
+                    });
+                    window.setTimeout(function(){
+                        try{ $("browser").ajxpPaneObject.resize(); }catch(e){}
+                    }, 100);
+                </script>
+			]]></template_part>
+            <template_part ajxpId="orbit_content" ajxpClass="AjxpPane" ajxpOptions='{"fit":"height","fitParent":"ajxp_desktop", "fakeOptionUser":"true", "messageBoxReference":true}' theme="orbit"><![CDATA[
+                <style>
+                div.flat_tabulator span.toggleHeader{
+                    background-color: #fb725c;
+                }
+                .largeButton, .SF_input.SF_inlineButton{
+                    background-color: #fb725c;
+                }
+                .action_bar{
+                    background-color: #EAEAEA;
+                    padding: 14px;
+                    min-height: 33px;
+                }
+                #account_pane .action_bar{
+                    text-align: right;
+                }
+                .action_bar a{
+                    background-color: #ffffff;
+                    margin-top:3px;
+                    cursor: pointer;
+                    color: #555;
+                }
+                div.class-FetchedResultPane{
+                    background-color: #f8f8f8;
+                }
+                #buttons_bar{
+                    padding:14px;
+                    text-align: right;
+                }
+                #buttons_bar a {
+                    padding-bottom: 0;
+                    height: 26px;
+                }
+                .action_bar span.actionbar_button_label{
+                    font-size: 11px;
+                }
+                .flat_tabulator div.panelHeader.tabulatorContainer{
+                    background-color: #30383A;
+                    padding-top: 10px;
+                }
+                #global_toolbar{
+                    display: block;
+                    background-color: #345E79;
+                }
+                </style>
+                <div id="userdashboard_myparams_title" ajxp_message_id="user_dash.title">
+                    <a id="dash_back_workspace" onclick="ajaxplorer.triggerRepositoryChange('ajxp_home'); return false;"><span class="icon-chevron-left"></span> AJXP_MESSAGE[user_dash.53]</a>
+                    <span id="dash_title">AJXP_MESSAGE[user_dash.title]</span>
+                </div>
+                <div id="userdashboard_main_tab" ajxpClass="AjxpTabulator" class="dashboard_main_pane horizontal_tabulator left_tabulator" ajxpOptions='{"fit":"height", "fitMarginBottom":0, "registerAsEditorOpener":false, "saveState":false,"events":{}, "tabsTips":"middle right", "defaultTabId": "parameters","tabInfos" : [{"id":"parameters","label":"user_dash.43", "title":"user_dash.43t","iconClass":"icon-cog", "element":"account_pane"}]}'>
+                    <div id="account_pane" ajxpClass="UserProfileEditor" class="tabbed_editor" ajxpOptions='{"fit":"height"}'>
+                        <div class="action_bar">
+                            <div class="toolbarGroup"></div>
+                        </div>
+                        <h3 class="dashboard_panel_title">AJXP_MESSAGE[user_dash.43]</h3>
+                        <div id="user_profile_form"></div>
+                    </div>
+                </div>
+			]]></template_part>
+            <component_config className="AjxpTabulator::userdashboard_main_tab">
+                <additional_tab id="my-users-pane"
+                                tabInfo='{"id":"info","label":"user_dash.46", "title":"user_dash.47","iconClass":"icon-book", "element":"my-users-pane", "position":2,"dontFocus":true}'
+                                paneInfo='{"type":"widget"}'><![CDATA[
+                    <div id="my-users-pane" ajxpClass="AjxpPane" class="tabbed_editor">
+                        <div id="buttons_bar" class="action_bar" ajxpClass="ActionsToolbar" ajxpOptions='{"toolbarsList":["change","address_book"],"skipBubbling":true, "skipCarousel":true,"submenuOffsetTop":2}'></div>
+                        <h3 class="dashboard_panel_title">AJXP_MESSAGE[user_dash.46]</h3>
+                        <div id="address_book" ajxpClass="FetchedResultPane" ajxpOptions='{"updateGlobalContext":true,"nodeProviderProperties":{"get_action":"ls","dir":"users"}, "displayMode":"detail","replaceScroller":true, "fit":"height", "cellPaddingCorrection":6, "iconBgPosition" : "5px 4px"}'></div>
+                    </div>
+                ]]></additional_tab>
+            </component_config>
+        </client_configs>
+		<actions>
+			<action name="ls" dirDefault="true">
+				<gui text="32" title="32" src="fileopen.png"
+					accessKey="folder_access_key">
+					<context selection="true" dir="" recycle="false"
+						actionBar="false" actionBarGroup="get" contextMenu="true" infoPanel="false">
+					</context>
+					<selectionContext dir="true" file="false" recycle="false"
+						unique="true" allowedMimes="*">
+					</selectionContext>
+				</gui>
+				<rightsContext noUser="true" userLogged="only" read="true"
+					write="false" adminOnly="false">
+				</rightsContext>
+				<processing>
+					<clientCallback prepareModal="true"><![CDATA[
+						var path;
+						if(window.actionArguments && window.actionArguments.length>0){
+							path = window.actionArguments[0];
+							if(Object.isString(path)){path = new AjxpNode(path,false,getBaseName(path));}
+						}else{
+							userSelection = ajaxplorer.getUserSelection();
+							if(userSelection && userSelection.isUnique() && (userSelection.hasDir() || userSelection.hasMime(["zip"]))){
+								path = userSelection.getUniqueNode();
+							}
+						}
+						if(path){
+							ajaxplorer.updateContextData(path);
+						}
+						]]></clientCallback>
+					<serverCallback methodName="switchAction"/>
+				</processing>
+			</action>
+			<action name="stat">
+				<processing>
+					<serverCallback methodName="switchAction"/>
+				</processing>
+			</action>
+			<action name="delete">
+				<gui text="7" title="161" src="editdelete.png" iconClass="icon-trash" accessKey="delete_access_key" hasAccessKey="true" specialAccessKey="delete">
+					<context selection="true" dir="" recycle="false"
+						actionBar="true" contextMenu="true" infoPanel="true"
+						actionBarGroup="change" inZip="false">
+					</context>
+					<selectionContext dir="false" file="true" recycle="false" unique="false"/>
+				</gui>
+				<rightsContext noUser="true" userLogged="only" read="true" write="true" adminOnly=""/>
+				<processing>
+					<clientCallback prepareModal="true"><![CDATA[
+						var onLoad = function(oForm){
+			   		    	$(oForm).down('span[id="delete_message"]').update(MessageHash['user_dash.11']);
+			   		    	$(oForm).down('input[name="ajxp_mime"]').value = ajaxplorer.getUserSelection().getUniqueNode().getAjxpMime();
+						};
+						modal.showDialogForm('Delete', 'delete_shared_form', onLoad, function(){
+							var oForm = modal.getForm();
+							ajaxplorer.getUserSelection().updateFormOrUrl(oForm);
+							ajaxplorer.actionBar.submitForm(oForm, true, function(transport){
+							    this.actionBar.parseXmlMessage(transport.responseXML);
+							    if(this.getContextHolder()._selectionSource && this.getContextHolder()._selectionSource.__className=='FetchedResultPane'){
+							        this.getContextHolder()._selectionSource.reloadDataModel();
+							    }
+							}.bind(ajaxplorer));
+							hideLightBox(true);
+							return false;
+						});
+						]]></clientCallback>
+					<clientForm id="delete_shared_form"><![CDATA[
+					<div id="delete_shared_form" action="delete" box_width="200">
+					<span id="delete_message"></span>
+					<input type="hidden" name="ajxp_mime" value="">
+					</div>				]]></clientForm>
+					<serverCallback methodName="switchAction"/>
+					</processing>
+			</action>
+		</actions>
+	</registry_contributions>
+	<class_definition filename="plugins/access.ajxp_user/class.UserDashboardDriver.php" classname="UserDashboardDriver"/>
+</ajxpdriver>
