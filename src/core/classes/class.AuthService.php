@@ -68,12 +68,16 @@ class AuthService
      */
     public static function generateSecureToken()
     {
-        if(isSet($_SESSION["FORCE_SECURE_TOKEN"])){
-            $_SESSION["SECURE_TOKEN"] = $_SESSION["FORCE_SECURE_TOKEN"];
-            return $_SESSION["SECURE_TOKEN"];
+        if(!isSet($_SESSION["SECURE_TOKENS"])){
+            $_SESSION["SECURE_TOKENS"] = array();
         }
-        $_SESSION["SECURE_TOKEN"] = AJXP_Utils::generateRandomString(32); //md5(time());
-        return $_SESSION["SECURE_TOKEN"];
+        if(isSet($_SESSION["FORCE_SECURE_TOKEN"])){
+            $_SESSION["SECURE_TOKENS"][] = $_SESSION["FORCE_SECURE_TOKEN"];
+            return $_SESSION["FORCE_SECURE_TOKEN"];
+        }
+        $newToken = AJXP_Utils::generateRandomString(32); //md5(time());
+        $_SESSION["SECURE_TOKENS"][] = $newToken;
+        return $newToken;
     }
     /**
      * Get the secure token from the session
@@ -82,7 +86,11 @@ class AuthService
      */
     public static function getSecureToken()
     {
-        return (isSet($_SESSION["SECURE_TOKEN"])?$_SESSION["SECURE_TOKEN"]:FALSE);
+        if(isSet($_SESSION["SECURE_TOKENS"]) && count($_SESSION["SECURE_TOKENS"])){
+            return true;
+        }
+        return false;
+        //return (isSet($_SESSION["SECURE_TOKENS"])?$_SESSION["SECURE_TOKEN"]:FALSE);
     }
     /**
      * Verify a secure token value from the session
@@ -92,7 +100,7 @@ class AuthService
      */
     public static function checkSecureToken($token)
     {
-        if (isSet($_SESSION["SECURE_TOKEN"]) && $_SESSION["SECURE_TOKEN"] == $token) {
+        if (isSet($_SESSION["SECURE_TOKENS"]) && in_array($token, $_SESSION["SECURE_TOKENS"])) {
             return true;
         }
         return false;
@@ -517,7 +525,7 @@ class AuthService
         if ($adminCount == 0) {
             $authDriver = ConfService::getAuthDriverImpl();
             $adminPass = ADMIN_PASSWORD;
-            if ($authDriver->getOption("TRANSMIT_CLEAR_PASS") !== true) {
+            if (!$authDriver->getOptionAsBool("TRANSMIT_CLEAR_PASS")) {
                 $adminPass = md5(ADMIN_PASSWORD);
             }
              self::createUser("admin", $adminPass, true);
@@ -730,8 +738,9 @@ class AuthService
             $res = $userObject->checkCookieString($userPass);
             return $res;
         }
-        $seed = $authDriver->getSeed(false);
-        if($seed != $returnSeed) return false;
+        if(!$authDriver->getOptionAsBool("TRANSMIT_CLEAR_PASS")){
+            if($authDriver->getSeed(false) != $returnSeed) return false;
+        }
         return $authDriver->checkPassword($userId, $userPass, $returnSeed);
     }
     /**
@@ -753,7 +762,7 @@ class AuthService
         AJXP_Controller::applyHook("user.before_password_change", array($userId));
         $authDriver->changePassword($userId, $userPass);
         AJXP_Controller::applyHook("user.after_password_change", array($userId));
-        if ($authDriver->getOption("TRANSMIT_CLEAR_PASS") === true) {
+        if ($authDriver->getOptionAsBool("TRANSMIT_CLEAR_PASS")) {
             // We can directly update the HA1 version of the WEBDAV Digest
             $realm = ConfService::getCoreConf("WEBDAV_DIGESTREALM");
             $ha1 = md5("{$userId}:{$realm}:{$userPass}");
@@ -799,7 +808,7 @@ class AuthService
             $user->setAdmin(true);
             $user->save("superuser");
         }
-        if ($authDriver->getOption("TRANSMIT_CLEAR_PASS") === true) {
+        if ($authDriver->getOptionAsBool("TRANSMIT_CLEAR_PASS")) {
             $realm = ConfService::getCoreConf("WEBDAV_DIGESTREALM");
             $ha1 = md5("{$userId}:{$realm}:{$userPass}");
             if (!isSet($user)) {
@@ -972,6 +981,8 @@ class AuthService
      * @param $limit
      * @param bool $cleanLosts
      * @param bool $recursive
+     * @param null $countCallback
+     * @param null $loopCallback
      * @return AbstractAjxpUser[]
      */
     public static function listUsers($baseGroup = "/", $regexp = null, $offset = -1, $limit = -1, $cleanLosts = true, $recursive = true, $countCallback = null, $loopCallback = null)
@@ -1064,6 +1075,7 @@ class AuthService
      * @param string $regexp
      * @param null $filterProperty Can be "parent" or "admin"
      * @param null $filterValue Can be a string, or constants AJXP_FILTER_EMPTY / AJXP_FILTER_NOT_EMPTY
+     * @param bool $recursive
      * @return int
      */
     public static function authCountUsers($baseGroup="/", $regexp="", $filterProperty = null, $filterValue = null, $recursive = true)

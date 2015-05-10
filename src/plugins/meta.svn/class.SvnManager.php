@@ -191,12 +191,13 @@ class SvnManager extends AJXP_AbstractMetaSource
                 header("Cache-Control: private",false);
             }
             $realFile = escapeshellarg($realFile);
+            $revision = escapeshellarg($revision);
             system( (SVNLIB_PATH!=""?SVNLIB_PATH."/":"") ."svn cat -r$revision $realFile");
             exit(0);
         } else if ($actionName == "revert_file") {
 
             $revision = escapeshellarg($httpVars["revision"]);
-               $realFile = $init["SELECTION"][0];
+            $realFile = $init["SELECTION"][0];
             $compare = (isSet($httpVars["compare"]) && $httpVars["compare"] == "true");
             $escapedFile = escapeshellarg($realFile);
             if ($compare) {
@@ -277,8 +278,10 @@ class SvnManager extends AJXP_AbstractMetaSource
             $this->commitChanges($actionName, array("dir" => $httpVars["dest"]), $filesVars);
         }
         $this->logInfo("CopyMove/Rename (svn delegate)", array("files"=>$init["SELECTION"]));
+
+        $mess = ConfService::getMessages();
         AJXP_XMLWriter::header();
-        AJXP_XMLWriter::sendMessage("The selected files/folders have been copied/moved (by SVN)", null);
+        AJXP_XMLWriter::sendMessage($mess["meta.svn.5"], null);
         AJXP_XMLWriter::reloadDataNode();
         AJXP_XMLWriter::close();
     }
@@ -309,8 +312,10 @@ class SvnManager extends AJXP_AbstractMetaSource
         $this->commitMessageParams = "[".implode(",",$init["SELECTION"])."]";
         $this->commitChanges($actionName, $httpVars, $filesVars);
         $this->logInfo("Delete (svn delegate)", array("files"=>$init["SELECTION"]));
+
+        $mess = ConfService::getMessages();
         AJXP_XMLWriter::header();
-        AJXP_XMLWriter::sendMessage("The selected files/folders have been deleted (by SVN)", null);
+        AJXP_XMLWriter::sendMessage($mess["meta.svn.51"], null);
         AJXP_XMLWriter::reloadDataNode();
         AJXP_XMLWriter::close();
     }

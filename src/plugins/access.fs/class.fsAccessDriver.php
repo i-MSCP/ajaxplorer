@@ -70,8 +70,8 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWrapperProvider
                 @mkdir($path."/".$recycle);
                 if (!is_dir($path."/".$recycle)) {
                     throw new AJXP_Exception("Cannot create recycle bin folder. Please check repository configuration or that your folder is writeable!");
-                } elseif (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-                    AJXP_Utils::winSetHidden($path."/".$recycle);
+                } else {
+                    $this->setHiddenAttribute(new AJXP_Node($this->urlBase ."/".$recycle));
                 }
             }
             $dataTemplate = $this->repository->getOption("DATA_TEMPLATE");
@@ -125,7 +125,7 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWrapperProvider
             $size = fgets ( $io, 4096);
             $size = trim(str_replace($dir, "", $size));
             $size =  floatval($size);
-            if(PHP_OS == "Darwin") $s = $s * 1024;
+            if(PHP_OS == "Darwin") $size = $size * 1024;
             pclose ( $io );
         }
         if($size != -1){
@@ -713,146 +713,122 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWrapperProvider
                     $this->logDebug("Upload error 412", array("destination"=>$this->addSlugToPath($destination)));
                     return array("ERROR" => array("CODE" => $errorCode, "MESSAGE" => $errorMessage));
                 }
+
+                $partialUpload = false;
+                $partialTargetSize = -1;
+                $originalAppendTo = "";
+                $createdNode = null;
+
                 foreach ($fileVars as $boxName => $boxData) {
                     if(substr($boxName, 0, 9) != "userfile_") continue;
-                    $err = AJXP_Utils::parseFileDataErrors($boxData);
-                    if ($err != null) {
-                        $errorCode = $err[0];
-                        $errorMessage = $err[1];
-                        break;
-                    }
-                    $userfile_name = $boxData["name"];
-                    try {
+
+                    try{
+                        // CHECK PHP UPLOAD ERRORS
+                        AJXP_Utils::parseFileDataErrors($boxData, true);
+
+                        // FIND PROPER FILE NAME
+                        $userfile_name=AJXP_Utils::sanitize(SystemTextEncoding::fromPostedFileName($boxData["name"]), AJXP_SANITIZE_FILENAME);
+                        if (isSet($httpVars["urlencoded_filename"])) {
+                            $userfile_name = AJXP_Utils::sanitize(SystemTextEncoding::fromUTF8(urldecode($httpVars["urlencoded_filename"])), AJXP_SANITIZE_FILENAME);
+                        }
+                        $userfile_name = substr($userfile_name, 0, ConfService::getCoreConf("NODENAME_MAX_LENGTH"));
+                        if (isSet($httpVars["auto_rename"])) {
+                            $userfile_name = self::autoRenameForDest($destination, $userfile_name);
+                        }
+                        $this->logDebug("User filename ".$userfile_name);
+
+                        // CHECK IF THIS IS A FORBIDDEN FILENAME
                         $this->filterUserSelectionToHidden(array($userfile_name));
-                    } catch (Exception $e) {
-                        return array("ERROR" => array("CODE" => 411, "MESSAGE" => "Forbidden"));
-                    }
-                    $userfile_name=AJXP_Utils::sanitize(SystemTextEncoding::fromPostedFileName($userfile_name), AJXP_SANITIZE_FILENAME);
-                    if (isSet($httpVars["urlencoded_filename"])) {
-                        $userfile_name = AJXP_Utils::sanitize(SystemTextEncoding::fromUTF8(urldecode($httpVars["urlencoded_filename"])), AJXP_SANITIZE_FILENAME);
-                    }
-                    $this->logDebug("User filename ".$userfile_name);
-                    $userfile_name = substr($userfile_name, 0, ConfService::getCoreConf("NODENAME_MAX_LENGTH"));
-                    if (isSet($httpVars["auto_rename"])) {
-                        $userfile_name = self::autoRenameForDest($destination, $userfile_name);
-                    }
-                    $already_existed = false;
-                    try {
-                        if (file_exists($destination."/".$userfile_name)) {
-                            $already_existed = true;
-                            AJXP_Controller::applyHook("node.before_change", array(new AJXP_Node($destination."/".$userfile_name), $boxData["size"]));
-                        } else {
-                            AJXP_Controller::applyHook("node.before_create", array(new AJXP_Node($destination."/".$userfile_name), $boxData["size"]));
-                        }
-                        AJXP_Controller::applyHook("node.before_change", array(new AJXP_Node($destination)));
-                    } catch (Exception $e) {
-                        $errorCode=507;
-                        $errorMessage = $e->getMessage();
-                        break;
-                    }
-                    $partialUpload = false;
-                    if(isSet($httpVars["partial_upload"]) && $httpVars["partial_upload"] == 'true' && isSet($httpVars["partial_target_bytesize"])){
-                        $partialUpload = true;
-                        $partialTargetSize = intval($httpVars["partial_target_bytesize"]);
-                        if(!isSet($httpVars["appendto_urlencoded_part"])){
-                            $userfile_name .= ".dlpart";
-                        }
-                    }
-                    if (isSet($boxData["input_upload"])) {
+
+                        // APPLY PRE-UPLOAD HOOKS
+                        $already_existed = false;
                         try {
-                            $this->logDebug("Begining reading INPUT stream");
-                            $input = fopen("php://input", "r");
-                            $output = fopen("$destination/".$userfile_name, "w");
-                            $sizeRead = 0;
-                            while ($sizeRead < intval($boxData["size"])) {
-                                $chunk = fread($input, 4096);
-                                $sizeRead += strlen($chunk);
-                                fwrite($output, $chunk, strlen($chunk));
+                            if (file_exists($destination."/".$userfile_name)) {
+                                $already_existed = true;
+                                AJXP_Controller::applyHook("node.before_change", array(new AJXP_Node($destination."/".$userfile_name), $boxData["size"]));
+                            } else {
+                                AJXP_Controller::applyHook("node.before_create", array(new AJXP_Node($destination."/".$userfile_name), $boxData["size"]));
                             }
-                            fclose($input);
-                            fclose($output);
-                            $this->logDebug("End reading INPUT stream");
+                            AJXP_Controller::applyHook("node.before_change", array(new AJXP_Node($destination)));
                         } catch (Exception $e) {
-                            $errorCode=411;
-                            $errorMessage = $e->getMessage();
-                            break;
+                            throw new Exception($e->getMessage(), 507);
                         }
-                    } else {
-                        $result = @move_uploaded_file($boxData["tmp_name"], "$destination/".$userfile_name);
-                        if (!$result) {
-                            $realPath = call_user_func(array($this->wrapperClassName, "getRealFSReference"),"$destination/".$userfile_name);
-                            $result = move_uploaded_file($boxData["tmp_name"], $realPath);
-                        }
-                        if (!$result) {
-                            $errorCode=411;
-                            $errorMessage="$mess[33] ".$userfile_name;
-                            break;
-                        }
-                    }
-                    if (isSet($httpVars["appendto_urlencoded_part"])) {
-                        $appendTo = AJXP_Utils::sanitize(SystemTextEncoding::fromUTF8(urldecode($httpVars["appendto_urlencoded_part"])), AJXP_SANITIZE_FILENAME);
-                        if(isSet($httpVars["partial_upload"]) && $httpVars["partial_upload"] == 'true'){
-                            $originalAppendTo = $appendTo;
-                            $appendTo .= ".dlpart";
-                        }
-                        $this->logDebug("AppendTo FILE".$appendTo);
-                        if (file_exists($destination ."/" . $appendTo)) {
-                            $already_existed = true;
-                            $this->logDebug("Should copy stream from $userfile_name to $appendTo");
-                            $partO = fopen($destination."/".$userfile_name, "r");
-                            $appendF = fopen($destination ."/". $appendTo, "a+");
-                            while (!feof($partO)) {
-                                $buf = fread($partO, 1024);
-                                fwrite($appendF, $buf, strlen($buf));
+
+                        // PARTIAL UPLOAD CASE - PREPPEND .dlpart extension
+                        if(isSet($httpVars["partial_upload"]) && $httpVars["partial_upload"] == 'true' && isSet($httpVars["partial_target_bytesize"])){
+                            $partialUpload = true;
+                            $partialTargetSize = intval($httpVars["partial_target_bytesize"]);
+                            if(!isSet($httpVars["appendto_urlencoded_part"])){
+                                $userfile_name .= ".dlpart";
                             }
-                            fclose($partO);
-                            fclose($appendF);
-                            $this->logDebug("Done, closing streams!");
                         }
-                        @unlink($destination."/".$userfile_name);
-                        $userfile_name = $appendTo;
-                        if($partialUpload && $partialTargetSize == filesize($destination."/".$userfile_name)){
-                            // This was the last part. We can now rename to the original name.
-                            if(is_file($destination."/".$originalFileName)){
-                                unlink($destination."/".$originalFileName);
+
+                        // NOW DO THE ACTUAL COPY
+                        $this->copyUploadedData($boxData, $destination, $userfile_name, $mess);
+
+                        // PARTIAL UPLOAD - PART II: APPEND DATA TO EXISTING PART
+                        if (isSet($httpVars["appendto_urlencoded_part"])) {
+                            $appendTo = AJXP_Utils::sanitize(SystemTextEncoding::fromUTF8(urldecode($httpVars["appendto_urlencoded_part"])), AJXP_SANITIZE_FILENAME);
+                            if(isSet($httpVars["partial_upload"]) && $httpVars["partial_upload"] == 'true'){
+                                $originalAppendTo = $appendTo;
+                                $appendTo .= ".dlpart";
                             }
-                            rename($destination."/".$userfile_name, $destination."/".$originalAppendTo);
-                            $userfile_name = $originalAppendTo;
-                            $partialUpload = false;
+                            $this->logDebug("AppendTo FILE".$appendTo);
+                            $already_existed = $this->appendUploadedData($destination, $userfile_name, $appendTo);
+                            $userfile_name = $appendTo;
+                            if($partialUpload && $partialTargetSize == filesize($destination."/".$userfile_name)){
+                                // This was the last part. We can now rename to the original name.
+                                if(is_file($destination."/".$originalAppendTo)){
+                                    unlink($destination."/".$originalAppendTo);
+                                }
+                                $result = @rename($destination."/".$userfile_name, $destination."/".$originalAppendTo);
+                                if($result === false){
+                                    throw new Exception("Error renaming ".$destination."/".$userfile_name." to ".$destination."/".$originalAppendTo);
+                                }
+                                $userfile_name = $originalAppendTo;
+                                $partialUpload = false;
+                                // Send a create event!
+                                $already_existed = false;
+                            }
                         }
+
+                        // NOW PREPARE POST-UPLOAD EVENTS
+                        $this->changeMode($destination."/".$userfile_name,$repoData);
+                        $createdNode = new AJXP_Node($destination."/".$userfile_name);
+                        clearstatcache(true, $createdNode->getUrl());
+                        $createdNode->loadNodeInfo(true);
+                        $logMessage.="$mess[34] ".SystemTextEncoding::toUTF8($userfile_name)." $mess[35] $dir";
+                        $this->logInfo("Upload File", array("file"=>$this->addSlugToPath(SystemTextEncoding::fromUTF8($dir))."/".$userfile_name));
+
+                        if($partialUpload){
+                            $this->logDebug("Return Partial Upload: SUCESS but no event yet");
+                            if(isSet($already_existed) && $already_existed === true){
+                                return array("SUCCESS" => true, "PARTIAL_NODE" => $createdNode);
+                            }
+                        } else {
+                            $this->logDebug("Return success");
+                            if(isSet($already_existed) && $already_existed === true){
+                                return array("SUCCESS" => true, "UPDATED_NODE" => $createdNode);
+                            }else{
+                                return array("SUCCESS" => true, "CREATED_NODE" => $createdNode);
+                            }
+                        }
+
+                    }catch(Exception $e){
+                        $errorCode = $e->getCode();
+                        if(empty($errorCode)) $errorCode = 411;
+                        return array("ERROR" => array("CODE" => $errorCode, "MESSAGE" => $e->getMessage()));
                     }
 
-                    $this->changeMode($destination."/".$userfile_name,$repoData);
-                    $createdNode = new AJXP_Node($destination."/".$userfile_name);
-                    //AJXP_Controller::applyHook("node.change", array(null, $createdNode, false));
-                    $logMessage.="$mess[34] ".SystemTextEncoding::toUTF8($userfile_name)." $mess[35] $dir";
-                    $this->logInfo("Upload File", array("file"=>$this->addSlugToPath(SystemTextEncoding::fromUTF8($dir))."/".$userfile_name));
                 }
 
-                if (isSet($errorMessage)) {
-                    $this->logDebug("Return error $errorCode $errorMessage");
-                    return array("ERROR" => array("CODE" => $errorCode, "MESSAGE" => $errorMessage));
-                } else if($partialUpload){
-                    $this->logDebug("Return Partial Upload: SUCESS but no event yet");
-                    if(isSet($already_existed) && $already_existed === true){
-                        return array("SUCCESS" => true, "PARTIAL_NODE" => $createdNode);
-                    }
-                } else {
-                    $this->logDebug("Return success");
-                    if(isSet($already_existed) && $already_existed === true){
-                        return array("SUCCESS" => true, "UPDATED_NODE" => $createdNode);
-                    }else{
-                        return array("SUCCESS" => true, "CREATED_NODE" => $createdNode);
-                    }
-                }
-                return ;
 
             break;
 
             case "lsync" :
 
                 if (!ConfService::currentContextIsCommandLine()) {
-                    die("This command must be accessed via CLI only.");
+                    //die("This command must be accessed via CLI only.");
                 }
                 $fromNode = null;
                 $toNode = null;
@@ -1270,98 +1246,80 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWrapperProvider
     }
 
     /**
-     * Test if userSelection is containing a hidden file, which should not be the case!
-     * @param UserSelection $files
+     * @param Array $uploadData Php-upload array
+     * @param String $destination Destination folder, including stream data
+     * @param String $filename Destination filename
+     * @param Array $messages Application messages table
+     * @return bool
+     * @throws Exception
      */
-    public function filterUserSelectionToHidden($files)
-    {
-        $showHiddenFiles = $this->getFilteredOption("SHOW_HIDDEN_FILES", $this->repository->getId());
-        foreach ($files as $file) {
-            $file = basename($file);
-            if (AJXP_Utils::isHidden($file) && !$showHiddenFiles) {
-                throw new Exception("$file Forbidden");
-            }
-            if ($this->filterFile($file) || $this->filterFolder($file)) {
-                throw new Exception("$file Forbidden");
-            }
-        }
-    }
-
-    public function filterNodeName($nodePath, $nodeName, &$isLeaf, $lsOptions)
-    {
-        $showHiddenFiles = $this->getFilteredOption("SHOW_HIDDEN_FILES", $this->repository->getId());
-        $isLeaf = (is_file($nodePath."/".$nodeName) || AJXP_Utils::isBrowsableArchive($nodeName));
-        if (AJXP_Utils::isHidden($nodeName) && !$showHiddenFiles) {
-            return false;
-        }
-        $nodeType = "d";
-        if ($isLeaf) {
-            if(AJXP_Utils::isBrowsableArchive($nodeName)) $nodeType = "z";
-            else $nodeType = "f";
-        }
-        if(!$lsOptions[$nodeType]) return false;
-        if ($nodeType == "d") {
-            if(RecycleBinManager::recycleEnabled()
-                && $nodePath."/".$nodeName == RecycleBinManager::getRecyclePath()){
-                    return false;
+    protected function copyUploadedData($uploadData, $destination, $filename, $messages){
+        if (isSet($uploadData["input_upload"])) {
+            try {
+                $this->logDebug("Begining reading INPUT stream");
+                $input = fopen("php://input", "r");
+                $output = fopen("$destination/".$filename, "w");
+                $sizeRead = 0;
+                while ($sizeRead < intval($uploadData["size"])) {
+                    $chunk = fread($input, 4096);
+                    $sizeRead += strlen($chunk);
+                    fwrite($output, $chunk, strlen($chunk));
                 }
-            return !$this->filterFolder($nodeName);
+                fclose($input);
+                fclose($output);
+                $this->logDebug("End reading INPUT stream");
+            } catch (Exception $e) {
+                throw new Exception($e->getMessage(), 411);
+            }
         } else {
-            if($nodeName == "." || $nodeName == "..") return false;
-            if(RecycleBinManager::recycleEnabled()
-                && $nodePath == RecycleBinManager::getRecyclePath()
-                && $nodeName == RecycleBinManager::getCacheFileName()){
-                return false;
+            $result = @move_uploaded_file($uploadData["tmp_name"], "$destination/".$filename);
+            if (!$result) {
+                $realPath = call_user_func(array($this->wrapperClassName, "getRealFSReference"),"$destination/".$filename);
+                $result = move_uploaded_file($uploadData["tmp_name"], $realPath);
             }
-            return !$this->filterFile($nodeName);
+            if (!$result) {
+                $errorMessage="$messages[33] ".$filename;
+                throw new Exception($errorMessage, 411);
+            }
         }
+        return true;
     }
 
-    public function filterFile($fileName, $hiddenTest = false)
-    {
-        $pathParts = pathinfo($fileName);
-        if($hiddenTest){
-            $showHiddenFiles = $this->getFilteredOption("SHOW_HIDDEN_FILES", $this->repository->getId());
-            if (AJXP_Utils::isHidden($pathParts["basename"]) && !$showHiddenFiles) return true;
-        }
-        $hiddenFileNames = $this->getFilteredOption("HIDE_FILENAMES", $this->repository->getId());
-        $hiddenExtensions = $this->getFilteredOption("HIDE_EXTENSIONS", $this->repository->getId());
-        if (!empty($hiddenFileNames)) {
-            if (!is_array($hiddenFileNames)) {
-                $hiddenFileNames = explode(",",$hiddenFileNames);
-            }
-            foreach ($hiddenFileNames as $search) {
-                if(strcasecmp($search, $pathParts["basename"]) == 0) return true;
-            }
-        }
-        if (!empty($hiddenExtensions)) {
-            if (!is_array($hiddenExtensions)) {
-                $hiddenExtensions = explode(",",$hiddenExtensions);
-            }
-            foreach ($hiddenExtensions as $search) {
-                if(strcasecmp($search, $pathParts["extension"]) == 0) return true;
-            }
-        }
-        return false;
-    }
+    /**
+     * @param String $folder Folder destination
+     * @param String $target Existing part to append data
+     * @param String $source Maybe updated by the function
+     * @return bool If the target file already existed or not.
+     */
+    protected function appendUploadedData($folder, $source, $target){
 
-    public function filterFolder($folderName, $compare = "equals")
-    {
-        $hiddenFolders = $this->getFilteredOption("HIDE_FOLDERS", $this->repository->getId());
-        if (!empty($hiddenFolders)) {
-            if (!is_array($hiddenFolders)) {
-                $hiddenFolders = explode(",",$hiddenFolders);
-            }
-            foreach ($hiddenFolders as $search) {
-                if($compare == "equals" && strcasecmp($search, $folderName) == 0) return true;
-                if($compare == "contains" && strpos($folderName, "/".$search) !== false) return true;
-            }
+        $already_existed = false;
+        if($source == $target){
+            throw new Exception("Something nasty happened: trying to copy $source into itself, it will create a loop!");
         }
-        return false;
+        if (file_exists($folder ."/" . $target)) {
+            $already_existed = true;
+            $this->logDebug("Should copy stream from $source to $target");
+            $partO = fopen($folder."/".$source, "r");
+            $appendF = fopen($folder ."/". $target, "a+");
+            while (!feof($partO)) {
+                $buf = fread($partO, 1024);
+                fwrite($appendF, $buf, strlen($buf));
+            }
+            fclose($partO);
+            fclose($appendF);
+            $this->logDebug("Done, closing streams!");
+        }
+        @unlink($folder."/".$source);
+        return $already_existed;
+
     }
 
     public function readFile($filePathOrData, $headerType="plain", $localName="", $data=false, $gzip=null, $realfileSystem=false, $byteOffset=-1, $byteLength=-1)
     {
+        if(!$data && !$gzip && !file_exists($filePathOrData)){
+            throw new Exception("File $filePathOrData not found!");
+        }
         if ($gzip === null) {
             $gzip = ConfService::getCoreConf("GZIP_COMPRESSION");
         }
@@ -1439,6 +1397,9 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWrapperProvider
 
                 header("Content-Length: ". $length);
                 $file = fopen($filePathOrData, 'rb');
+                if(!is_resource($file)){
+                    throw new Exception("Failed opening file ".$filePathOrData);
+                }
                 fseek($file, 0);
                 $relOffset = $offset;
                 while ($relOffset > 2.0E9) {
@@ -1511,6 +1472,9 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWrapperProvider
             if ($realfileSystem) {
                 $this->logDebug("realFS!", array("file"=>$filePathOrData));
                 $fp = fopen($filePathOrData, "rb");
+                if(!is_resource($fp)){
+                    throw new Exception("Failed opening file ".$filePathOrData);
+                }
                 if ($byteOffset != -1) {
                     fseek($fp, $byteOffset);
                 }
@@ -1714,7 +1678,10 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWrapperProvider
         }
         $oldNode = new AJXP_Node($old);
         AJXP_Controller::applyHook("node.before_path_change", array(&$oldNode));
-        rename($old,$new);
+        $test = @rename($old,$new);
+        if($test === false){
+            throw new Exception("Error while renaming ".$old." to ".$new);
+        }
         AJXP_Controller::applyHook("node.change", array($oldNode, new AJXP_Node($new), false));
     }
 
@@ -1996,6 +1963,18 @@ class fsAccessDriver extends AbstractAccessDriver implements AjxpWrapperProvider
             }
         }
         closedir($handle);
+    }
+
+    /**
+     * Apply specific operation to set a node as hidden.
+     * Can be overwritten, or will probably do nothing.
+     * @param AJXP_Node $node
+     */
+    public function setHiddenAttribute($node){
+        if($this->getWrapperClassName() == "fsAccessWrapper" && strtoupper(substr(PHP_OS, 0, 3)) === 'WIN'){
+            $realPath =  call_user_func(array($this->wrapperClassName, "getRealFSReference"),$node->getUrl());
+            @shell_exec("attrib +H " . escapeshellarg($realPath));
+        }
     }
 
     private function purge($fileName)

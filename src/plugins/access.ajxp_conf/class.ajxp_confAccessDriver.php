@@ -94,7 +94,8 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                     $repoOut[$repoObject->getId()] = $repoObject->getDisplay();
                 }
                 HTMLWriter::charsetHeader("application/json");
-                echo json_encode(array("LEGEND" => "Select a workspace", "LIST" => $repoOut));
+                $mess = ConfService::getMessages();
+                echo json_encode(array("LEGEND" => $mess["ajxp_conf.150"], "LIST" => $repoOut));
 
             break;
 
@@ -255,8 +256,8 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                 "ajxp_mime" => "user"
             );
             if(in_array($nodeKey, $this->currentBookmarks)) $meta = array_merge($meta, array("ajxp_bookmarked" => "true", "overlay_icon" => "bookmark.png"));
-            echo AJXP_XMLWriter::renderNode($nodeKey, $userId, true, $meta, true, false);
-
+            $userDisplayName = $userObject->mergedRole->filterParameterValue("core.conf", "USER_DISPLAY_NAME", "ajxp_user", $userId);
+            echo AJXP_XMLWriter::renderNode($nodeKey, $userDisplayName, true, $meta, true, false);
         }
 
     }
@@ -307,47 +308,51 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                     "data" => array(
                         "LABEL" => $mess["ajxp_conf.110"],
                         "ICON" => "user.png",
-                        "DESCRIPTION" => "Day-to-day administration of the application : who accesses to what, create roles, etc.",
+                        "DESCRIPTION" => $mess["ajxp_conf.137"],
                         "CHILDREN" => array(
                             "repositories" => array(
                                 "AJXP_MIME" => "workspaces_zone",
                                 "LABEL" => $mess["ajxp_conf.3"],
-                                "DESCRIPTION" => "Create and delete workspaces, add features to them using meta sources.",
+                                "DESCRIPTION" => $mess["ajxp_conf.138"],
                                 "ICON" => "hdd_external_unmount.png",
                                 "LIST" => "listRepositories"),
                             "users" => array(
                                 "AJXP_MIME" => "users_zone",
                                 "LABEL" => $mess["ajxp_conf.2"],
-                                "DESCRIPTION" => "Manage users and groups",
+                                "DESCRIPTION" => $mess["ajxp_conf.139"],
                                 "ICON" => "users-folder.png",
                                 "LIST" => "listUsers"
                             ),
                             "roles" => array(
                                 "AJXP_MIME" => "roles_zone",
                                 "LABEL" => $mess["ajxp_conf.69"],
-                                "DESCRIPTION" => "Define profiles that can be applied at once to whole bunch of users.",
+                                "DESCRIPTION" => $mess["ajxp_conf.140"],
                                 "ICON" => "user-acl.png",
                                 "LIST" => "listRoles"),
                         )
                     ),
                     "config" => array(
+                        "AJXP_MIME" => "plugins_zone",
                         "LABEL" => $mess["ajxp_conf.109"],
                         "ICON" => "preferences_desktop.png",
-                        "DESCRIPTION" => "Global configurations of the application core and of each plugin. Enable/disable plugins",
+                        "DESCRIPTION" => $mess["ajxp_conf.136"],
                         "CHILDREN" => array(
                             "core"	   	   => array(
+                                "AJXP_MIME" => "plugins_zone",
                                 "LABEL" => $mess["ajxp_conf.98"],
-                                "DESCRIPTION" => "Core application parameters",
+                                "DESCRIPTION" => $mess["ajxp_conf.133"],
                                 "ICON" => "preferences_desktop.png",
                                 "LIST" => "listPlugins"),
                             "plugins"	   => array(
+                                "AJXP_MIME" => "plugins_zone",
                                 "LABEL" => $mess["ajxp_conf.99"],
-                                "DESCRIPTION" => "Enable/disable additional feature-oriented plugins, check if they are correctly working, set up global parameters of the plugins.",
+                                "DESCRIPTION" => $mess["ajxp_conf.134"],
                                 "ICON" => "folder_development.png",
                                 "LIST" => "listPlugins"),
                             "core_plugins" => array(
+                                "AJXP_MIME" => "plugins_zone",
                                 "LABEL" => $mess["ajxp_conf.123"],
-                                "DESCRIPTION" => "Enable/disable core plugins (auth, conf, mail, etc), check if they are correctly working. Configuration of these plugins are generally done through the Main Options",
+                                "DESCRIPTION" => $mess["ajxp_conf.135"],
                                 "ICON" => "folder_development.png",
                                 "LIST" => "listPlugins"),
                         )
@@ -355,32 +360,32 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                     "admin" => array(
                         "LABEL" => $mess["ajxp_conf.111"],
                         "ICON" => "toggle_log.png",
-                        "DESCRIPTION" => "Administrator tasks to monitor the application state.",
+                        "DESCRIPTION" => $mess["ajxp_conf.141"],
                         "CHILDREN" => array(
                             "logs" => array(
                                 "LABEL" => $mess["ajxp_conf.4"],
-                                "DESCRIPTION" => "Monitor all activities happening on the server",
+                                "DESCRIPTION" => $mess["ajxp_conf.142"],
                                 "ICON" => "toggle_log.png",
                                 "LIST" => "listLogFiles"),
                             "diagnostic" => array(
                                 "LABEL" => $mess["ajxp_conf.5"],
-                                "DESCRIPTION" => "Read the start-up diagnostic",
+                                "DESCRIPTION" => $mess["ajxp_conf.143"],
                                 "ICON" => "susehelpcenter.png", "LIST" => "printDiagnostic")
                         )
                     ),
                     "developer" => array(
-                        "LABEL" => "Developer Resources",
+                        "LABEL" => $mess["ajxp_conf.144"],
                         "ICON" => "applications_engineering.png",
-                        "DESCRIPTION" => "Generated documentations for developers",
+                        "DESCRIPTION" => $mess["ajxp_conf.145"],
                         "CHILDREN" => array(
                             "actions" => array(
-                                "LABEL" => "Actions API",
-                                "DESCRIPTION" => "List all actions contributed by all plugins and visualize their input parameters",
+                                "LABEL" => $mess["ajxp_conf.146"],
+                                "DESCRIPTION" => $mess["ajxp_conf.147"],
                                 "ICON" => "book.png",
                                 "LIST" => "listActions"),
                             "hooks" => array(
-                                "LABEL" => "Hooks Definitions",
-                                "DESCRIPTION" => "List all hooks triggered in the application, their documentation, where there are triggered and which plugin listen to them.",
+                                "LABEL" => $mess["ajxp_conf.148"],
+                                "DESCRIPTION" => $mess["ajxp_conf.149"],
                                 "ICON" => "book.png",
                                 "LIST" => "listHooks")
                         )
@@ -477,6 +482,17 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
 
             break;
 
+            case "clear_plugins_cache":
+                AJXP_XMLWriter::header();
+                // Clear plugins cache if they exist
+                AJXP_PluginsService::clearPluginsCache();
+                ConfService::clearMessagesCache();
+                AJXP_XMLWriter::sendMessage($mess["ajxp_conf.".(AJXP_SKIP_CACHE?"132":"131")], null);
+                AJXP_XMLWriter::reloadDataNode();
+                AJXP_XMLWriter::close();
+                break;
+
+
             case "create_group":
 
                 if (isSet($httpVars["group_path"])) {
@@ -547,7 +563,7 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                 }
                 if (isSet($httpVars["format"]) && $httpVars["format"] == "json") {
                     HTMLWriter::charsetHeader("application/json");
-                    $roleData = $role->getDataArray();
+                    $roleData = $role->getDataArray(true);
                     $allReps = ConfService::getRepositoriesList("all", false);
                     $repos = array();
                     if(!empty($userObject)){
@@ -658,11 +674,14 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                             $parsed,
                             ($userObject!=null?$usrId:null),
                             "ROLE_PARAM_",
-                            $binariesContext
+                            $binariesContext,
+                            AJXP_Role::$cypheredPassPrefix
                         );
                         $roleData["PARAMETERS"][$repoScope][$plugId] = $parsed;
                     }
                 }
+                $existingParameters = $originalRole->listParameters(true);
+                $this->mergeExistingParameters($roleData["PARAMETERS"], $existingParameters);
                 if (isSet($userObject) && isSet($data["USER"]) && isSet($data["USER"]["PROFILE"])) {
                     $userObject->setAdmin(($data["USER"]["PROFILE"] == "admin"));
                     $userObject->setProfile($data["USER"]["PROFILE"]);
@@ -703,7 +722,7 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                     } else {
                         AuthService::updateRole($originalRole);
                     }
-                    $output = array("ROLE" => $originalRole->getDataArray(), "SUCCESS" => true);
+                    $output = array("ROLE" => $originalRole->getDataArray(true), "SUCCESS" => true);
                 } catch (Exception $e) {
                     $output = array("ERROR" => $e->getMessage());
                 }
@@ -989,7 +1008,7 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                 if(!is_array($custom)) $custom = array();
 
                 $options = $custom;
-                $this->parseParameters($httpVars, $options, $userId);
+                $this->parseParameters($httpVars, $options, $userId, false, $custom);
                 $custom = $options;
                 $user->setPref("CUSTOM_PARAMS", $custom);
                 $user->save();
@@ -1022,7 +1041,8 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                     $wallet[$repoID] = array();
                 }
                 $options = $wallet[$repoID];
-                $this->parseParameters($httpVars, $options, $userId);
+                $existing = $options;
+                $this->parseParameters($httpVars, $options, $userId, false, $existing);
                 $wallet[$repoID] = $options;
                 $user->setPref("AJXP_WALLET", $wallet);
                 $user->save();
@@ -1262,6 +1282,7 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                     }
                 }
                 $nested = array();
+                $definitions = $plug->getConfigsDefinitions();
                 print("<repository index=\"$repId\"");
                 foreach ($repository as $name => $option) {
                     if(strstr($name, " ")>-1) continue;
@@ -1285,7 +1306,10 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                             } else {
                                 if (is_bool($optValue)) {
                                     $optValue = ($optValue?"true":"false");
+                                } else if(isSet($definitions[$key]) && $definitions[$key]["type"] == "password" && !empty($optValue)){
+                                    $optValue = "__AJXP_VALUE_SET__";
                                 }
+
                                 $optValue = AJXP_Utils::xmlEntities($optValue, true);
                                 print("<param name=\"$key\" value=\"$optValue\"/>");
                             }
@@ -1358,7 +1382,10 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                     $res = ConfService::replaceRepository($repId, $repo);
                 } else {
                     $options = array();
-                    $this->parseParameters($httpVars, $options, null, true);
+                    $existing = $repo->getOptionsDefined();
+                    $existingValues = array();
+                    foreach($existing as $exK) $existingValues[$exK] = $repo->getOption($exK, true);
+                    $this->parseParameters($httpVars, $options, null, true, $existingValues);
                     if (count($options)) {
                         foreach ($options as $key=>$value) {
                             if ($key == "AJXP_SLUG") {
@@ -1487,6 +1514,9 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                     $options = array();
                     $this->parseParameters($httpVars, $options, null, true);
                 }
+                if(isset($repoOptions[$metaSourceId])){
+                    $this->mergeExistingParameters($options, $repoOptions[$metaSourceId]);
+                }
                 $repoOptions[$metaSourceId] = $options;
                 uksort($repoOptions, array($this,"metaSourceOrderingFunction"));
                 $repo->addOption("META_SOURCES", $repoOptions);
@@ -1553,7 +1583,7 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                     $gName = basename($groupPath);
                     AuthService::deleteGroup($basePath, $gName);
                     AJXP_XMLWriter::header();
-                    AJXP_XMLWriter::sendMessage($mess["ajxp_conf.125"], null);
+                    AJXP_XMLWriter::sendMessage($mess["ajxp_conf.128"], null);
                     AJXP_XMLWriter::reloadDataNode();
                     AJXP_XMLWriter::close();
                 } else {
@@ -1582,6 +1612,7 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                 $fullManifest = $ajxpPlugin->getManifestRawContent("", "xml");
                 $xPath = new DOMXPath($fullManifest->ownerDocument);
                 $addParams = "";
+                $instancesDefinitions = array();
                 $pInstNodes = $xPath->query("server_settings/global_param[contains(@type, 'plugin_instance:')]");
                 foreach ($pInstNodes as $pInstNode) {
                     $type = $pInstNode->getAttribute("type");
@@ -1602,6 +1633,12 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                         $addParams .= str_replace("<param", "<global_param group_switch_name=\"${fieldName}\" group_switch_label=\"".$typePlug->getManifestLabel().$checkErrorMessage."\" group_switch_value=\"".$typePlug->getId()."\" ", $tParams);
                         $addParams .= str_replace("<param", "<global_param", AJXP_XMLWriter::replaceAjxpXmlKeywords($typePlug->getManifestRawContent("server_settings/param[@group_switch_name]")));
                         $addParams .= AJXP_XMLWriter::replaceAjxpXmlKeywords($typePlug->getManifestRawContent("server_settings/global_param"));
+                        $instancesDefs = $typePlug->getConfigsDefinitions();
+                        if(!empty($instancesDefs) && is_array($instancesDefs)) {
+                            foreach($instancesDefs as $defKey => $defData){
+                                $instancesDefinitions[$fieldName."/".$defKey] = $defData;
+                            }
+                        }
                     }
                 }
                 $allParams = AJXP_XMLWriter::replaceAjxpXmlKeywords($fullManifest->ownerDocument->saveXML($fullManifest));
@@ -1609,26 +1646,39 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                 $allParams = str_replace("</server_settings>", $addParams."</server_settings>", $allParams);
 
                 echo($allParams);
-                $definitions = $ajxpPlugin->getConfigsDefinitions();
+                $definitions = $instancesDefinitions;
+                $configsDefs = $ajxpPlugin->getConfigsDefinitions();
+                if(is_array($configsDefs)){
+                    $definitions = array_merge($configsDefs, $instancesDefinitions);
+                }
                 $values = $ajxpPlugin->getConfigs();
                 if(!is_array($values)) $values = array();
                 echo("<plugin_settings_values>");
+                // First flatten keys
+                $flattenedKeys = array();
+                foreach ($values as $key => $value){
+                    $type = $definitions[$key]["type"];
+                    if ((strpos($type, "group_switch:") === 0 || strpos($type, "plugin_instance:") === 0 ) && is_array($value)) {
+                        $res = array();
+                        $this->flattenKeyValues($res, $definitions, $value, $key);
+                        $flattenedKeys += $res;
+                        // Replace parent key by new flat value
+                        $values[$key] = $flattenedKeys[$key];
+                    }
+                }
+                $values += $flattenedKeys;
+
                 foreach ($values as $key => $value) {
                     $attribute = true;
                     $type = $definitions[$key]["type"];
                     if ($type == "array" && is_array($value)) {
                         $value = implode(",", $value);
-                    } else if ((strpos($type, "group_switch:") === 0 || strpos($type, "plugin_instance:") === 0 ) && is_array($value)) {
-                        $res = array();
-                        $this->flattenKeyValues($res, $value, $key);
-                        foreach ($res as $newKey => $newVal) {
-                            echo("<param name=\"$newKey\" value=\"".AJXP_Utils::xmlEntities($newVal)."\"/>");
-                        }
-                        continue;
                     } else if ($type == "boolean") {
                         $value = ($value === true || $value === "true" || $value == 1?"true":"false");
                     } else if ($type == "textarea") {
                         $attribute = false;
+                    } else if ($type == "password" && !empty($value)){
+                        $value = "__AJXP_VALUE_SET__";
                     }
                     if ($attribute) {
                         echo("<param name=\"$key\" value=\"".AJXP_Utils::xmlEntities($value)."\"/>");
@@ -1677,10 +1727,11 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
                 $options = array();
                 $this->parseParameters($httpVars, $options, null, true);
                 $confStorage = ConfService::getConfStorageImpl();
+                list($pType, $pName) = explode(".", $httpVars["plugin_id"]);
+                $existing = $confStorage->loadPluginConfig($pType, $pName);
+                $this->mergeExistingParameters($options, $existing);
                 $confStorage->savePluginConfig($httpVars["plugin_id"], $options);
-                @unlink(AJXP_PLUGINS_CACHE_FILE);
-                @unlink(AJXP_PLUGINS_REQUIRES_FILE);
-                @unlink(AJXP_PLUGINS_MESSAGES_FILE);
+                AJXP_PluginsService::clearPluginsCache();
                 AJXP_XMLWriter::header();
                 AJXP_XMLWriter::sendMessage($mess["ajxp_conf.97"], null);
                 AJXP_XMLWriter::close();
@@ -2391,22 +2442,40 @@ class ajxp_confAccessDriver extends AbstractAccessDriver
     }
 
 
-    public function parseParameters(&$repDef, &$options, $userId = null, $globalBinaries = false)
+    protected function parseParameters(&$repDef, &$options, $userId = null, $globalBinaries = false, $existingValues = array())
     {
         AJXP_Utils::parseStandardFormParameters($repDef, $options, $userId, "DRIVER_OPTION_", ($globalBinaries?array():null));
-
+        if(!count($existingValues)){
+            return;
+        }
+        $this->mergeExistingParameters($options, $existingValues);
     }
 
-    public function flattenKeyValues(&$result, $values, $parent = "")
+    protected function mergeExistingParameters(&$parsed, $existing){
+        foreach($parsed as $k => &$v){
+            if($v === "__AJXP_VALUE_SET__" && isSet($existing[$k])){
+                $parsed[$k] = $existing[$k];
+            }else if(is_array($v) && is_array($existing[$k])){
+                $this->mergeExistingParameters($v, $existing[$k]);
+            }
+        }
+    }
+
+    public function flattenKeyValues(&$result, &$definitions, $values, $parent = "")
     {
         foreach ($values as $key => $value) {
             if (is_array($value)) {
-                $this->flattenKeyValues($result, $value, $parent."/".$key);
+                $this->flattenKeyValues($result, $definitions, $value, $parent."/".$key);
             } else {
                 if ($key == "group_switch_value" || $key == "instance_name") {
                     $result[$parent] = $value;
                 } else {
                     $result[$parent.'/'.$key] = $value;
+                    if(isSet($definitions[$key])){
+                        $definitions[$parent.'/'.$key] = $definitions[$key];
+                    }else if(isSet($definitions[dirname($parent)."/".$key])){
+                        $definitions[$parent.'/'.$key] = $definitions[dirname($parent)."/".$key];
+                    }
                 }
             }
         }

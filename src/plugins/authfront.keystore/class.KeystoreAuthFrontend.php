@@ -42,7 +42,7 @@ class KeystoreAuthFrontend extends AbstractAuthFrontend {
 
         $token = $this->detectVar($httpVars, "auth_token");
         if(empty($token)){
-            $this->logDebug(__FUNCTION__, "Empty token", $_POST);
+            //$this->logDebug(__FUNCTION__, "Empty token", $_POST);
             return false;
         }
         $this->storage = ConfService::getConfStorageImpl();
@@ -51,20 +51,20 @@ class KeystoreAuthFrontend extends AbstractAuthFrontend {
         $data = null;
         $this->storage->simpleStoreGet("keystore", $token, "serial", $data);
         if(empty($data)){
-            $this->logDebug(__FUNCTION__, "Cannot find token in keystore");
+            //$this->logDebug(__FUNCTION__, "Cannot find token in keystore");
             return false;
         }
-        $this->logDebug(__FUNCTION__, "Found token in keystore");
+        //$this->logDebug(__FUNCTION__, "Found token in keystore");
         $userId = $data["USER_ID"];
         $private = $data["PRIVATE"];
         $server_uri = rtrim(array_shift(explode("?", $_SERVER["REQUEST_URI"])), "/");
         $server_uri = implode("/", array_map("rawurlencode", array_map("urldecode", explode("/", $server_uri))));
         $server_uri = str_replace("~", "%7E", $server_uri);
-        $this->logDebug(__FUNCTION__, "Decoded URI is ".$server_uri);
+        //$this->logDebug(__FUNCTION__, "Decoded URI is ".$server_uri);
         list($nonce, $hash) = explode(":", $this->detectVar($httpVars, "auth_hash"));
-        $this->logDebug(__FUNCTION__, "Nonce / hash is ".$nonce.":".$hash);
+        //$this->logDebug(__FUNCTION__, "Nonce / hash is ".$nonce.":".$hash);
         $replay = hash_hmac("sha256", $server_uri.":".$nonce.":".$private, $token);
-        $this->logDebug(__FUNCTION__, "Replay is ".$replay);
+        //$this->logDebug(__FUNCTION__, "Replay is ".$replay);
 
         if($replay == $hash){
             $res = AuthService::logUser($userId, "", true);
@@ -79,16 +79,14 @@ class KeystoreAuthFrontend extends AbstractAuthFrontend {
         $this->storage = ConfService::getConfStorageImpl();
         if(!is_a($this->storage, "sqlConfDriver")) return false;
 
-        $user = AuthService::getLoggedUser()->getId();
-        if($userId == $user || AuthService::getLoggedUser()->isAdmin()){
-            $keys = $this->storage->simpleStoreList("keystore", null, "", "serial", '%"USER_ID";s:'.strlen($userId).':"'.$userId.'"%');
-            foreach($keys as $keyId => $keyData){
-                $this->storage->simpleStoreClear("keystore", $keyId);
-            }
-            if(count($keys)){
-                $this->logInfo(__FUNCTION__, "Revoking ".count($keys)." keys for user '".$userId."' on password change action.");
-            }
+        $keys = $this->storage->simpleStoreList("keystore", null, "", "serial", '%"USER_ID";s:'.strlen($userId).':"'.$userId.'"%');
+        foreach($keys as $keyId => $keyData){
+            $this->storage->simpleStoreClear("keystore", $keyId);
         }
+        if(count($keys)){
+            $this->logInfo(__FUNCTION__, "Revoking ".count($keys)." keys for user '".$userId."' on password change action.");
+        }
+        return null;
     }
 
     /**
@@ -110,6 +108,13 @@ class KeystoreAuthFrontend extends AbstractAuthFrontend {
         switch($action){
             case "keystore_generate_auth_token":
 
+                if(ConfService::getCoreConf("SESSION_SET_CREDENTIALS", "auth")){
+                    $this->logDebug("Keystore Generate Tokens", "Session Credentials set: returning empty tokens to force basic authentication");
+                    HTMLWriter::charsetHeader("text/plain");
+                    echo "";
+                    break;
+                }
+
                 $token = AJXP_Utils::generateRandomString();
                 $private = AJXP_Utils::generateRandomString();
                 $data = array("USER_ID" => $user, "PRIVATE" => $private);
@@ -126,7 +131,7 @@ class KeystoreAuthFrontend extends AbstractAuthFrontend {
                 $data["DEVICE_UA"] = $_SERVER['HTTP_USER_AGENT'];
                 $data["DEVICE_IP"] = $_SERVER['REMOTE_ADDR'];
                 $this->storage->simpleStoreSet("keystore", $token, $data, "serial");
-                header("Content-type: application/json;");
+                HTMLWriter::charsetHeader("application/json");
                 echo(json_encode(array(
                     "t" => $token,
                     "p" => $private)

@@ -99,7 +99,7 @@ class PowerFSController extends AJXP_Plugin
 
             case "postcompress_download":
 
-                $archive = AJXP_Utils::getAjxpTmpDir()."/".$httpVars["ope_id"]."_".$httpVars["archive_name"];
+                $archive = AJXP_Utils::getAjxpTmpDir().DIRECTORY_SEPARATOR.$httpVars["ope_id"]."_".AJXP_Utils::sanitize(AJXP_Utils::decodeSecureMagic($httpVars["archive_name"]), AJXP_SANITIZE_FILENAME);
                 $fsDriver = AJXP_PluginsService::getInstance()->getUniqueActivePluginForType("access");
                 if (is_file($archive)) {
                     register_shutdown_function("unlink", $archive);
@@ -119,8 +119,8 @@ class PowerFSController extends AJXP_Plugin
                     AJXP_Controller::applyActionInBackground(ConfService::getRepository()->getId(), $action, $httpVars);
                     AJXP_XMLWriter::header();
                     $bgParameters = array(
-                        "dir" => $dir,
-                        "archive_name"  => $archiveName,
+                        "dir" => SystemTextEncoding::toUTF8($dir),
+                        "archive_name"  => SystemTextEncoding::toUTF8($archiveName),
                         "on_end" => (isSet($httpVars["on_end"])?$httpVars["on_end"]:"reload"),
                         "ope_id" => $opeId
                     );
@@ -161,9 +161,8 @@ class PowerFSController extends AJXP_Plugin
                     }
                 }
                 $cmdSeparator = ((PHP_OS == "WIN32" || PHP_OS == "WINNT" || PHP_OS == "Windows")? "&" : ";");
-                //$archiveName = SystemTextEncoding::fromUTF8($httpVars["archive_name"]);
                 if (!$compressLocally) {
-                    $archiveName = AJXP_Utils::getAjxpTmpDir()."/".$httpVars["ope_id"]."_".$archiveName;
+                    $archiveName = AJXP_Utils::getAjxpTmpDir().DIRECTORY_SEPARATOR.$httpVars["ope_id"]."_".$archiveName;
                 }
                 chdir($rootDir);
                 $cmd = $this->getFilteredOption("ZIP_PATH")." -r ".escapeshellarg($archiveName)." ".implode(" ", $args);

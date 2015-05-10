@@ -743,11 +743,13 @@ class ConfService
      */
     public function addRepositoryInst($oRepository)
     {
+        AJXP_Controller::applyHook("workspace.before_create", array($oRepository));
         $confStorage = self::getConfStorageImpl();
         $res = $confStorage->saveRepository($oRepository);
         if ($res == -1) {
             return $res;
         }
+        AJXP_Controller::applyHook("workspace.after_create", array($oRepository));
         AJXP_Logger::info(__CLASS__,"Create Repository", array("repo_name"=>$oRepository->getDisplay()));
         $this->invalidateLoadedRepositories();
         return null;
@@ -764,6 +766,23 @@ class ConfService
         $repository = ConfService::getRepositoryByAlias($idOrAlias);
         if($repository != null) return $repository;
         return null;
+    }
+
+    /**
+     * Get the reserved slugs used for config defined repositories
+     * @return array
+     */
+    public static function reservedSlugsFromConfig(){
+        $inst = self::getInstance();
+        $slugs = array();
+        if(isSet($inst->configs["DEFAULT_REPOSITORIES"])){
+            foreach($inst->configs["DEFAULT_REPOSITORIES"] as $repo){
+                if(isSet($repo["AJXP_SLUG"])){
+                    $slugs[] = $repo["AJXP_SLUG"];
+                }
+            }
+        }
+        return $slugs;
     }
 
     /**
@@ -858,11 +877,13 @@ class ConfService
      */
     public function replaceRepositoryInst($oldId, $oRepositoryObject)
     {
+        AJXP_Controller::applyHook("workspace.before_update", array($oRepositoryObject));
         $confStorage = self::getConfStorageImpl();
         $res = $confStorage->saveRepository($oRepositoryObject, true);
         if ($res == -1) {
             return $res;
         }
+        AJXP_Controller::applyHook("workspace.after_update", array($oRepositoryObject));
         AJXP_Logger::info(__CLASS__,"Edit Repository", array("repo_name"=>$oRepositoryObject->getDisplay()));
         $this->invalidateLoadedRepositories();
     }
@@ -896,11 +917,13 @@ class ConfService
      */
     public function deleteRepositoryInst($repoId)
     {
+        AJXP_Controller::applyHook("workspace.before_delete", array($repoId));
         $confStorage = self::getConfStorageImpl();
         $res = $confStorage->deleteRepository($repoId);
         if ($res == -1) {
             return $res;
         }
+        AJXP_Controller::applyHook("workspace.after_delete", array($repoId));
         AJXP_Logger::info(__CLASS__,"Delete Repository", array("repo_id"=>$repoId));
         $this->invalidateLoadedRepositories();
     }
@@ -912,9 +935,32 @@ class ConfService
      */
     public static function zipEnabled()
     {
-        if(ConfService::getCoreConf("DISABLE_ZIP_BROWSING") === true) return false;
-        return ((function_exists("gzopen") || function_exists("gzopen64"))?true:false);
+        return (function_exists("gzopen") || function_exists("gzopen64"));
     }
+
+    /**
+     * Check if users are allowed to browse ZIP content
+     * @static
+     * @return bool
+     */
+    public static function zipBrowsingEnabled()
+    {
+        if(!self::zipEnabled()) return false;
+        return !ConfService::getCoreConf("DISABLE_ZIP_BROWSING");
+    }
+
+    /**
+     * Check if users are allowed to create ZIP archive
+     * @static
+     * @return bool
+     */
+    public static function zipCreationEnabled()
+    {
+        if(!self::zipEnabled()) return false;
+        return ConfService::getCoreConf("ZIP_CREATION");
+    }
+
+
     /**
      * Get the list of all "conf" messages
      * @static
@@ -1003,6 +1049,18 @@ class ConfService
         }
 
         return $this->configs["MESSAGES"];
+    }
+
+    /**
+     * Clear the messages cache
+     */
+    public static function clearMessagesCache(){
+        $i18nFiles = glob(dirname(AJXP_PLUGINS_MESSAGES_FILE)."/i18n/*.ser");
+        if (is_array($i18nFiles)) {
+            foreach ($i18nFiles as $file) {
+                @unlink($file);
+            }
+        }
     }
 
     /**
@@ -1408,7 +1466,9 @@ class ConfService
         $repository->driverInstance = $plugInstance;
         if (isSet($_SESSION["REPO_ID"]) && $_SESSION["REPO_ID"] == $repository->getId()) {
             $this->configs["REPOSITORY"] = $repository;
-            $this->configs["REPOSITORIES"][$_SESSION['REPO_ID']] = $repository;
+            if(is_array($this->configs["REPOSITORIES"])){
+                $this->configs["REPOSITORIES"][$_SESSION['REPO_ID']] = $repository;
+            }
         }
         return $plugInstance;
     }

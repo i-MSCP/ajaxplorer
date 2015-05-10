@@ -143,12 +143,17 @@ class AJXP_XMLWriter
     {
         $string = "<tree";
         $metaData["filename"] = $nodeName;
+        if(AJXP_Utils::detectXSS($nodeName)) $metaData["filename"] = "/XSS Detected - Please contact your admin";
         if (!isSet($metaData["text"])) {
+            if(AJXP_Utils::detectXSS($nodeLabel)) $nodeLabel = "XSS Detected - Please contact your admin";
             $metaData["text"] = $nodeLabel;
+        }else{
+            if(AJXP_Utils::detectXSS($metaData["text"])) $metaData["text"] = "XSS Detected - Please contact your admin";
         }
         $metaData["is_file"] = ($isLeaf?"true":"false");
 
         foreach ($metaData as $key => $value) {
+            if(AJXP_Utils::detectXSS($value)) $value = "XSS Detected!";
             $value = AJXP_Utils::xmlEntities($value, true);
             $string .= " $key=\"$value\"";
         }
@@ -560,10 +565,12 @@ class AJXP_XMLWriter
             }
             $buffer.="</preferences>";
             $buffer.="<special_rights is_admin=\"".($loggedUser->isAdmin()?"1":"0")."\"  ".($lock!==false?"lock=\"$lock\"":"")."/>";
+            /*
             $bMarks = $loggedUser->getBookmarks();
             if (count($bMarks)) {
                 $buffer.= "<bookmarks>".AJXP_XMLWriter::writeBookmarks($bMarks, false)."</bookmarks>";
             }
+            */
             $buffer.="</user>";
         }
         return $buffer;
@@ -636,9 +643,17 @@ class AJXP_XMLWriter
                 $merged = $loggedUser->mergedRole;
                 $params = array();
                 foreach($exposed as $exposed_prop){
-                    $value = $merged->filterParameterValue($exposed_prop["PLUGIN_ID"], $exposed_prop["NAME"], $repoId, $exposed_prop["DEFAULT"]);
+                    $metaOptions = $repoObject->getOption("META_SOURCES");
+                    if(!isSet($metaOptions[$exposed_prop["PLUGIN_ID"]])){
+                        continue;
+                    }
+                    $value = $exposed_prop["DEFAULT"];
+                    if(isSet($metaOptions[$exposed_prop["PLUGIN_ID"]][$exposed_prop["NAME"]])){
+                        $value = $metaOptions[$exposed_prop["PLUGIN_ID"]][$exposed_prop["NAME"]];
+                    }
+                    $value = $merged->filterParameterValue($exposed_prop["PLUGIN_ID"], $exposed_prop["NAME"], $repoId, $value);
                     if($value !== null){
-                        if($value === true  || $value === false) $value = ($value?"true":"false");
+                        if($value === true  || $value === false) $value = ($value === true ?"true":"false");
                         $params[] = '<repository_plugin_param plugin_id="'.$exposed_prop["PLUGIN_ID"].'" name="'.$exposed_prop["NAME"].'" value="'.AJXP_Utils::xmlEntities($value).'"/>';
                         $roleString .= str_replace(".", "_",$exposed_prop["PLUGIN_ID"])."_".$exposed_prop["NAME"].'="'.AJXP_Utils::xmlEntities($value).'" ';
                     }

@@ -67,6 +67,9 @@ class VideoReader extends AJXP_Plugin
                 $ranges = explode('=', $_SERVER['HTTP_RANGE']);
                 $offsets = explode('-', $ranges[1]);
                 $offset = floatval($offsets[0]);
+                if($offset == 0){
+                    $this->logInfo('Preview', 'Streaming content of '.$file);
+                }
 
                 $length = floatval($offsets[1]) - $offset;
                 if (!$length) $length = $filesize - $offset;
@@ -77,6 +80,7 @@ class VideoReader extends AJXP_Plugin
                 header('Accept-Ranges:bytes');
                 header("Content-Length: ". $length);
                 $file = fopen($filename, 'rb');
+                if(!is_resource($file)) throw new Exception("Cannot open file $file!");
                 fseek($file, 0);
                 $relOffset = $offset;
                 while ($relOffset > 2.0E9) {
@@ -96,6 +100,7 @@ class VideoReader extends AJXP_Plugin
                 }
                 fclose($file);
             } else {
+                $this->logInfo('Preview', 'Streaming content of '.$file);
                  $fp = fopen($filename, "rb");
                 header("Content-Length: ".$filesize);
                 header("Content-Range: bytes 0-" . ($filesize - 1) . "/" . $filesize. ";");

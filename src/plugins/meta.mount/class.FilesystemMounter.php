@@ -134,15 +134,21 @@ class FilesystemMounter extends AJXP_AbstractMetaSource
         $UNC_PATH = $this->getOption("UNC_PATH", $user, $password, false);
         $MOUNT_OPTIONS = $this->getOption("MOUNT_OPTIONS", $user, $password);
 
-        $cmd = ($MOUNT_SUDO? "sudo ": ""). "mount -t " .$MOUNT_TYPE. (empty( $MOUNT_OPTIONS )? " " : " -o " .$MOUNT_OPTIONS. " " ) .$UNC_PATH. " " .$MOUNT_POINT;
+        $cmd = ($MOUNT_SUDO? "sudo ": ""). "mount -t " .$MOUNT_TYPE. (empty( $MOUNT_OPTIONS )? " " : " -o " .escapeshellarg($MOUNT_OPTIONS). " " ) .escapeshellarg($UNC_PATH). " " .escapeshellarg($MOUNT_POINT);
         $res = null;
-        if($this->getOption("MOUNT_ENV_PASSWD") === true){
+        if($this->getOption("MOUNT_ENV_PASSWD") == true){
             putenv("PASSWD=$password");
         }
         system($cmd, $res);
-        if($this->getOption("MOUNT_ENV_PASSWD") === true){
+        if($this->getOption("MOUNT_ENV_PASSWD") == true){
             putenv("PASSWD=");
         }
+        $resultsOptions = str_replace(" ", "", $this->getOption("MOUNT_RESULT_SUCCESS"));
+        $acceptedResults = array(0);
+        if(!empty($resultsOptions)){
+            $acceptedResults = array_merge($acceptedResults, array_map("intval", explode(",", $resultsOptions)));
+        }
+
         if($res === null){
             // Check it is correctly mounted now!
             // Could not get the output return code
@@ -150,7 +156,7 @@ class FilesystemMounter extends AJXP_AbstractMetaSource
             $output = shell_exec($cmd1);
             $success = !empty($output);
         }else{
-            $success = ($res == 0 || $res == 32);
+            $success = (in_array($res, $acceptedResults));
         }
         if (!$success) {
             throw new Exception("Error while mounting file system!");
@@ -171,7 +177,14 @@ class FilesystemMounter extends AJXP_AbstractMetaSource
         $MOUNT_POINT = $this->getOption("MOUNT_POINT", $user, $password);
         $MOUNT_SUDO = $this->options["MOUNT_SUDO"];
 
-        system(($MOUNT_SUDO?"sudo":"")." umount ".$MOUNT_POINT);
+        system(($MOUNT_SUDO?"sudo":"")." umount ".escapeshellarg($MOUNT_POINT), $res);
+        if($this->getOption("REMOVE_MOUNTPOINT_ON_UNMOUNT") == true && $res == 0 && !is_file($MOUNT_POINT."/.ajxp_mount")){
+            // Remove mount point
+            $testRm = @rmdir($MOUNT_POINT);
+            if($testRm === false){
+                $this->logError("[umount]", "Error while trying to delete mount point on unmount");
+            }
+        }
         return true;
     }
 

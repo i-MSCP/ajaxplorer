@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ajxpdriver id="access.ajxp_user" label="CONF_MESSAGE[User Dashboard]" description="CONF_MESSAGE[User home dashboard, can be displayed before accessing to workspaces]"  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="file:../core.ajaxplorer/ajxp_registry.xsd">
+<ajxpdriver id="access.ajxp_user" enabled="always" label="CONF_MESSAGE[User Dashboard]" description="CONF_MESSAGE[User home dashboard, can be displayed before accessing to workspaces]"  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="file:../core.ajaxplorer/ajxp_registry.xsd">
 	<client_settings icon="plugins/access.ajxp_user/share.png">
 		<resources>
 			<i18n namespace="user_dash" path="plugins/access.ajxp_user/i18n" />
@@ -11,7 +11,7 @@
         <node_provider ajxpClass="EmptyNodeProvider" ajxpOptions="{}"/>
 	</client_settings>
     <server_settings>
-        <global_param name="DASH_DISABLE_ADDRESS_BOOK" type="boolean" default="false" label="Disable Address Book" description="Do not display address book in user account panel."/>
+        <global_param name="DASH_DISABLE_ADDRESS_BOOK" type="boolean" default="false" label="CONF_MESSAGE[Disable Address Book]" description="CONF_MESSAGE[Do not display address book in user account panel.]"/>
     </server_settings>
 	<registry_contributions>
 		<client_configs>
@@ -145,7 +145,7 @@
                     <a id="dash_back_workspace" onclick="ajaxplorer.triggerRepositoryChange('ajxp_home'); return false;"><span class="icon-chevron-left"></span> AJXP_MESSAGE[user_dash.53]</a>
                     <span id="dash_title">AJXP_MESSAGE[user_dash.title]</span>
                 </div>
-                <div id="userdashboard_main_tab" ajxpClass="AjxpTabulator" class="dashboard_main_pane horizontal_tabulator left_tabulator" ajxpOptions='{"fit":"height", "fitMarginBottom":0, "registerAsEditorOpener":false, "saveState":false,"events":{}, "tabsTips":"middle right", "defaultTabId": "parameters","tabInfos" : [{"id":"parameters","label":"user_dash.43", "title":"user_dash.43t","iconClass":"icon-cog", "element":"account_pane"}]}'>
+                <div id="userdashboard_main_tab" ajxpClass="AjxpTabulator" class="dashboard_main_pane horizontal_tabulator left_tabulator" ajxpOptions='{"fit":"height", "fitMarginBottom":0, "fitParent":"orbit_content", "registerAsEditorOpener":false, "saveState":false,"events":{}, "tabsTips":"middle right", "defaultTabId": "parameters","tabInfos" : [{"id":"parameters","label":"user_dash.43", "title":"user_dash.43t","iconClass":"icon-cog", "element":"account_pane"}]}'>
                     <div id="account_pane" ajxpClass="UserProfileEditor" class="tabbed_editor" ajxpOptions='{"fit":"height"}'>
                         <div class="action_bar">
                             <div class="toolbarGroup"></div>

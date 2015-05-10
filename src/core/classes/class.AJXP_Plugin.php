@@ -55,6 +55,7 @@ class AJXP_Plugin implements Serializable
     protected $pluginConf; // can be passed at load time
     protected $pluginConfDefinition;
     protected $dependencies;
+    protected $extensionsDependencies;
     protected $streamData;
     protected $mixins = array();
     public $loadingState = "";
@@ -85,7 +86,7 @@ class AJXP_Plugin implements Serializable
         "contributionsLoaded",
         "mixins",
         "streamData",
-        "options", "pluginConf", "pluginConfDefinition", "dependencies", "loadingState", "manifestXML");
+        "options", "pluginConf", "pluginConfDefinition", "dependencies", "extensionsDependencies", "loadingState", "manifestXML");
 
     /**
      * Construction method
@@ -102,6 +103,7 @@ class AJXP_Plugin implements Serializable
         $this->name = $split[1];
         $this->actions = array();
         $this->dependencies = array();
+        $this->extensionsDependencies = array();
     }
 
     protected function getPluginWorkDir($check = false)
@@ -155,7 +157,7 @@ class AJXP_Plugin implements Serializable
                 $repositoryScope,
                 isSet($merged[$optionName]) ? $merged[$optionName] : null
             );
-            if ($repo != null && $repo->hasParent()) {
+            if (isSet($repo) && $repo != null && $repo->hasParent()) {
                 $retest = $loggedUser->mergedRole->filterParameterValue(
                     $this->getId(),
                     $optionName,
@@ -340,29 +342,14 @@ class AJXP_Plugin implements Serializable
                 $name = $names->item(0)->value;
                 $this->actions[$name] = $name;
                 continue;
-                /*
-                $actionData=array();
-                $actionData["XML"] = $contribNode->ownerDocument->saveXML($actionNode);
-                $names = $actionXpath->query("@name", $actionNode);
-                $callbacks = $actionXpath->query("processing/serverCallback/@methodName", $actionNode);
-                if ($callbacks->length) {
-                    $actionData["callback"] = $callbacks->item(0)->value;
-                }
-                $rightContextNodes = $actionXpath->query("rightsContext",$actionNode);
-                if ($rightContextNodes->length) {
-                    $rightContext = $rightContextNodes->item(0);
-                    $actionData["rights"] = $this->nodeAttrToHash($rightContext);
-                }
-                $actionData["node"] = $actionNode;
-                $this->actions[$name] = $actionData;
-                */
             }
         }
     }
+
     /**
      * Load the main manifest.xml file of the plugni
      * @throws Exception
-     * @return
+     * @return void
      */
     public function loadManifest()
     {
@@ -416,11 +403,11 @@ class AJXP_Plugin implements Serializable
     public function serialize()
     {
         if ($this->manifestDoc != null) {
-            $this->manifestXML = base64_encode($this->manifestDoc->saveXML());
+            $this->manifestXML = serialize(base64_encode($this->manifestDoc->saveXML()));
         }
         $serialArray = array();
         foreach ($this->serializableAttributes as $attr) {
-            $serialArray[$attr] = serialize($this->$attr);
+            $serialArray[$attr] = $this->$attr;
         }
         return serialize($serialArray);
     }
@@ -434,16 +421,14 @@ class AJXP_Plugin implements Serializable
     {
         $serialArray = unserialize($string);
         foreach ($serialArray as $key => $value) {
-            $this->$key = unserialize($value);
+            $this->$key = $value;
         }
         if ($this->manifestXML != NULL) {
-            //$this->manifestDoc = DOMDocument::loadXML(base64_decode($this->manifestXML));
             $this->manifestDoc = new DOMDocument(1.0, "UTF-8");
-            $this->manifestDoc->loadXML(base64_decode($this->manifestXML));
+            $this->manifestDoc->loadXML(base64_decode(unserialize($this->manifestXML)));
             $this->reloadXPath();
             unset($this->manifestXML);
         }
-        //var_dump($this);
     }
 
     /**
@@ -451,6 +436,7 @@ class AJXP_Plugin implements Serializable
      * on the manifest.
      * @param string $xmlNodeName
      * @param string $format
+     * @param bool $externalFiles
      * @return DOMElement|DOMNodeList|string
      */
     public function getManifestRawContent($xmlNodeName = "", $format = "string", $externalFiles = false)
@@ -502,6 +488,11 @@ class AJXP_Plugin implements Serializable
         foreach ($nodes as $attr) {
             $value = $attr->value;
             $this->dependencies = array_merge($this->dependencies, explode("|", $value));
+        }
+        $extPaths = "dependencies/phpExtension/@name";
+        $nodes = $this->xPath->query($extPaths);
+        foreach ($nodes as $attr) {
+            $this->extensionsDependencies[] = $attr->value;
         }
     }
     /**
@@ -565,12 +556,13 @@ class AJXP_Plugin implements Serializable
      */
     protected function loadConfigsDefinitions()
     {
-        $params = $this->xPath->query("//server_settings/global_param");
+        $params = $this->xPath->query("//server_settings/global_param|//server_settings/param");
         $this->pluginConf = array();
         foreach ($params as $xmlNode) {
+            $global = ($xmlNode->nodeName == "global_param");
             $paramNode = $this->nodeAttrToHash($xmlNode);
             $this->pluginConfDefinition[$paramNode["name"]] = $paramNode;
-            if (isset($paramNode["default"])) {
+            if ($global && isset($paramNode["default"])) {
                 if ($paramNode["type"] == "boolean") {
                     $paramNode["default"] = ($paramNode["default"] === "true" ? true: false);
                 } else if ($paramNode["type"] == "integer") {
@@ -659,6 +651,23 @@ class AJXP_Plugin implements Serializable
         if(!$files->length) return false;
         return $this->nodeAttrToHash($files->item(0));
     }
+
+    public function missingExtensions(){
+        $missing = array();
+        if(count($this->extensionsDependencies)){
+            foreach($this->extensionsDependencies as $ext){
+                if (!extension_loaded($ext)) {
+                    $missing[] = $ext;
+                }
+            }
+        }
+        return $missing;
+    }
+
+    public function hasMissingExtensions(){
+        return count($this->missingExtensions()) > 0;
+    }
+
     /**
      * @return bool
      */

@@ -86,15 +86,17 @@ class MqManager extends AJXP_Plugin
     }
 
     /**
-     * @param null AJXP_Node $origNode
-     * @param null AJXP_Node $newNode
-     * @param bool bool $copy
+     * @param AJXP_Node $origNode
+     * @param AJXP_Node $newNode
+     * @param bool $copy
      */
     public function publishNodeChange($origNode = null, $newNode = null, $copy = false)
     {
-        $content = "";$repo = "";
+        $content = "";$repo = "";$targetUserId=null;
+        $update = false;
         if ($newNode != null) {
             $repo = $newNode->getRepositoryId();
+            $targetUserId = $newNode->getUser();
             $update = false;
             $data = array();
             if ($origNode != null && !$copy) {
@@ -107,11 +109,12 @@ class MqManager extends AJXP_Plugin
         }
         if ($origNode != null && ! $update && !$copy) {
             $repo = $origNode->getRepositoryId();
+            $targetUserId = $origNode->getUser();
             $content = AJXP_XMLWriter::writeNodesDiff(array("REMOVE" => array($origNode->getPath())));
         }
         if (!empty($content) && $repo != "") {
 
-            $this->sendInstantMessage($content, $repo);
+            $this->sendInstantMessage($content, $repo, $targetUserId);
 
         }
 
@@ -124,7 +127,8 @@ class MqManager extends AJXP_Plugin
         } else {
             $scope = ConfService::getRepositoryById($repositoryId)->securityScope();
             if ($scope == "USER") {
-                $userId = AuthService::getLoggedUser()->getId();
+                if($targetUserId) $userId = $targetUserId;
+                else $userId = AuthService::getLoggedUser()->getId();
             } else if ($scope == "GROUP") {
                 $gPath = AuthService::getLoggedUser()->getGroupPath();
             } else if (isSet($targetUserId)) {
@@ -140,7 +144,7 @@ class MqManager extends AJXP_Plugin
         if(isSet($userId)) $message->userId = $userId;
         if(isSet($gPath)) $message->groupPath = $gPath;
 
-        if (isSet($this->msgExchanger)) {
+        if ($this->msgExchanger) {
             $this->msgExchanger->publishInstantMessage("nodes:$repositoryId", $message);
         }
 
@@ -185,7 +189,6 @@ class MqManager extends AJXP_Plugin
                 if (AuthService::usersEnabled()) {
                     $user = AuthService::getLoggedUser();
                     if ($user == null) {
-                        //throw new Exception("You must be logged in");
                         AJXP_XMLWriter::header();
                         AJXP_XMLWriter::requireAuth();
                         AJXP_XMLWriter::close();
@@ -197,6 +200,14 @@ class MqManager extends AJXP_Plugin
                 } else {
                     $GROUP_PATH = '/';
                     $uId = 'shared';
+                }
+                $currentRepository = ConfService::getCurrentRepositoryId();
+                $channelRepository = str_replace("nodes:", "", $httpVars["channel"]);
+                if($channelRepository != $currentRepository){
+                    AJXP_XMLWriter::header();
+                    echo "<require_registry_reload/>";
+                    AJXP_XMLWriter::close();
+                    return;
                 }
                //session_write_close();
 
@@ -267,8 +278,10 @@ class MqManager extends AJXP_Plugin
                 throw new Exception("Web Socket server seems to already be running!");
             }
         }
-
-        $cmd = ConfService::getCoreConf("CLI_PHP")." ws-server.php -host=".$params["WS_SERVER_BIND_HOST"]." -port=".$params["WS_SERVER_BIND_PORT"]." -path=".$params["WS_SERVER_PATH"];
+        $host = escapeshellarg($params["WS_SERVER_BIND_HOST"]);
+        $port = escapeshellarg($params["WS_SERVER_BIND_PORT"]);
+        $path = escapeshellarg($params["WS_SERVER_PATH"]);
+        $cmd = ConfService::getCoreConf("CLI_PHP")." ws-server.php -host=".$host." -port=".$port." -path=".$path;
         chdir(AJXP_INSTALL_PATH.DIRECTORY_SEPARATOR.AJXP_PLUGINS_FOLDER.DIRECTORY_SEPARATOR."core.mq");
         $process = AJXP_Controller::runCommandInBackground($cmd, null);
         if ($process != null) {

@@ -56,6 +56,7 @@ class PixlrEditor extends AJXP_Plugin
       $fData = array("tmp_name" => $tmp, "name" => urlencode(basename($file)), "type" => "image/jpg");
       //var_dump($fData);
         $node = new AJXP_Node($destStreamURL.$file);
+        $this->logInfo('Preview', 'Sending content of '.$file.' to Pixlr server.');
         AJXP_Controller::applyHook("node.read", array($node));
 
 
@@ -86,6 +87,7 @@ class PixlrEditor extends AJXP_Plugin
       $file = AJXP_Utils::decodeSecureMagic($httpVars["original_file"]);
         $node = new AJXP_Node($destStreamURL.$file);
         $node->loadNodeInfo();
+        $this->logInfo('Edit', 'Retrieving content of '.$file.' from Pixlr server.');
         AJXP_Controller::applyHook("node.before_change", array(&$node));
       $url = $httpVars["new_url"];
       $urlParts = parse_url($url);
@@ -111,12 +113,15 @@ class PixlrEditor extends AJXP_Plugin
 
       $orig = fopen($image, "r");
       $target = fopen($destStreamURL.$file, "w");
-      while (!feof($orig)) {
-        fwrite($target, fread($orig, 4096));
+      if(is_resource($orig) && is_resource($target)){
+          while (!feof($orig)) {
+            fwrite($target, fread($orig, 4096));
+          }
+          fclose($orig);
+          fclose($target);
       }
-      fclose($orig);
-      fclose($target);
-
+        clearstatcache(true, $node->getUrl());
+        $node->loadNodeInfo(true);
         AJXP_Controller::applyHook("node.change", array(&$node, &$node));
       //header("Content-Type:text/plain");
       //print($mess[115]);

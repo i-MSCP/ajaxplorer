@@ -367,6 +367,10 @@ class sqlConfDriver extends AbstractConfDriver
             $res = dibi::query("SELECT [slug],[uuid] FROM [ajxp_repo] WHERE [slug] LIKE '".$slug."%'");
         }
         $existingSlugs = $res->fetchPairs();
+        $configSlugs = ConfService::reservedSlugsFromConfig();
+        if(in_array($slug, $configSlugs)){
+            $existingSlugs[$slug] = $slug;
+        }
         if(!count($existingSlugs)) return $slug;
         $index = 1;
         $base = $slug;
@@ -384,7 +388,7 @@ class sqlConfDriver extends AbstractConfDriver
      *
      * @param Repository $repositoryObject
      * @param Boolean $update
-     * @return -1 if failed
+     * @return int -1 if failed
      */
     public function saveRepository($repositoryObject, $update = false)
     {
@@ -1032,7 +1036,11 @@ class sqlConfDriver extends AbstractConfDriver
      */
     public function pruneTemporaryKeys($keyType, $expiration)
     {
-        dibi::query("DELETE FROM [ajxp_simple_store] WHERE [store_id] = %s AND [insertion_date] < (CURRENT_TIMESTAMP - %i)", "temporakey_".$keyType, $expiration*60);
+        if($this->sqlDriver["driver"] == "postgre"){
+            dibi::query("DELETE FROM [ajxp_simple_store] WHERE [store_id] = %s AND [insertion_date] < (CURRENT_TIMESTAMP - time '0:$expiration')", "temporakey_".$keyType);
+        }else{
+            dibi::query("DELETE FROM [ajxp_simple_store] WHERE [store_id] = %s AND [insertion_date] < (CURRENT_TIMESTAMP - %i)", "temporakey_".$keyType, $expiration*60);
+        }
     }
 
 

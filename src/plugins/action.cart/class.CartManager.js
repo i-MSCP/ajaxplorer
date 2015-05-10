@@ -129,7 +129,7 @@ Class.create("CartManager", FetchedResultPane, {
 
         var h = this.getLocalSelectionForPosting();
         if(h.size() == 0) return;
-        if((zipEnabled && multipleFilesDownloadEnabled))
+        if((window.multipleFilesDownloadEnabled))
         {
 
             var zipName = window.prompt(MessageHash['action.cart.14'], this.__label);
@@ -151,7 +151,7 @@ Class.create("CartManager", FetchedResultPane, {
                 if(success){
                     ajaxplorer.goTo('/'+zipName+'.zip');
                     window.setTimeout(function(){
-                        ajaxplorer.actionBar.fireAction('share');
+                        ajaxplorer.actionBar.fireAction('share-file-minisite');
                     }, 500);
                 }
             }.bind(this);

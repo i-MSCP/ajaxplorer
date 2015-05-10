@@ -724,7 +724,7 @@ abstract class AbstractConfDriver extends AJXP_Plugin
                     if($original_id != $data["new_user_id"]){
                         throw new Exception(str_replace("%s", $data["new_user_id"], $mess["ajxp_conf.127"]));
                     }
-                    if (AuthService::userExists($data["new_user_id"])) {
+                    if (AuthService::userExists($data["new_user_id"],"w")) {
                         throw new Exception($mess["ajxp_conf.43"]);
                     }
                     $loggedUser = AuthService::getLoggedUser();
@@ -778,7 +778,10 @@ abstract class AbstractConfDriver extends AJXP_Plugin
                             }
                             $name = $xmlNode->getAttribute("name");
                             if (isSet($data[$name]) || $data[$name] === "") {
-                                if ($data[$name] === "" || $userObject->parentRole == null || $userObject->parentRole->filterParameterValue($pluginId, $name, AJXP_REPO_SCOPE_ALL, "") != $data[$name]) {
+                                if($data[$name] == "__AJXP_VALUE_SET__") continue;
+                                if ($data[$name] === "" || $userObject->parentRole == null
+                                    || $userObject->parentRole->filterParameterValue($pluginId, $name, AJXP_REPO_SCOPE_ALL, "") != $data[$name]
+                                    || $userObject->personalRole->filterParameterValue($pluginId, $name, AJXP_REPO_SCOPE_ALL, "") != $data[$name]) {
                                     $userObject->personalRole->setParameterValue($pluginId, $name, $data[$name]);
                                     $rChanges = true;
                                 }
@@ -872,7 +875,7 @@ abstract class AbstractConfDriver extends AJXP_Plugin
                         $password = $httpVars["webdav_pass"];
                         if (function_exists('mcrypt_encrypt')) {
                             $user = $userObject->getId();
-                            $secret = (defined("AJXP_SECRET_KEY")? AJXP_SAFE_SECRET_KEY:"\1CDAFx¨op#");
+                            $secret = (defined("AJXP_SAFE_SECRET_KEY")? AJXP_SAFE_SECRET_KEY:"\1CDAFx¨op#");
                             $password = base64_encode(mcrypt_encrypt(MCRYPT_RIJNDAEL_256,  md5($user.$secret), $password, MCRYPT_MODE_ECB));
                         }
                         $davData["PASS"] = $password;
@@ -1057,6 +1060,11 @@ abstract class AbstractConfDriver extends AJXP_Plugin
                 $existingOnly = isSet($httpVars["existing_only"]) && $httpVars["existing_only"] == "true";
                 if(!empty($crtValue)) $regexp = '^'.$crtValue;
                 else $regexp = null;
+                $skipDisplayWithoutRegexp = ConfService::getCoreConf("USERS_LIST_REGEXP_MANDATORY", "conf");
+                if($skipDisplayWithoutRegexp && $regexp == null){
+                    print("<ul></ul>");
+                    break;
+                }
                 $limit = intval(ConfService::getCoreConf("USERS_LIST_COMPLETE_LIMIT", "conf"));
                 $searchAll = ConfService::getCoreConf("CROSSUSERS_ALLGROUPS", "conf");
                 $displayAll = ConfService::getCoreConf("CROSSUSERS_ALLGROUPS_DISPLAY", "conf");
@@ -1104,7 +1112,7 @@ abstract class AbstractConfDriver extends AJXP_Plugin
                         case 'group':
                             $authGroups = AuthService::listChildrenGroups($baseGroup);
                             foreach ($authGroups as $gId => $gName) {
-                                $allGroups["AJXP_GRP_" . AuthService::filterBaseGroup($gId)] = $gName;
+                                $allGroups["AJXP_GRP_" . rtrim($baseGroup, "/")."/".ltrim($gId, "/")] = $gName;
                             }
                             break;
                         case 'role':
@@ -1114,7 +1122,7 @@ abstract class AbstractConfDriver extends AJXP_Plugin
                             $groups = array();
                             $authGroups = AuthService::listChildrenGroups($baseGroup);
                             foreach ($authGroups as $gId => $gName) {
-                                $groups["AJXP_GRP_" . AuthService::filterBaseGroup($gId)] = $gName;
+                                $groups["AJXP_GRP_" . rtrim($baseGroup, "/")."/".ltrim($gId, "/")] = $gName;
                             }
                             $roles = $this->getUserRoleList($loggedUser, $rolePrefix, $includeString, $excludeString, $listRoleType);
 
@@ -1303,7 +1311,8 @@ abstract class AbstractConfDriver extends AJXP_Plugin
                     if (isSet($valueFiltersExclude) && in_array(strtolower(substr($roleId, strlen($rolePrefix))), $valueFiltersExclude)) continue;
                     if (isSet($matchFilterInclude) && !preg_match($matchFilterInclude, substr($roleId, strlen($rolePrefix)))) continue;
                     if (isSet($valueFiltersInclude) && !in_array(strtolower(substr($roleId, strlen($rolePrefix))), $valueFiltersInclude)) continue;
-                    $roleObject = AuthService::getRole($roleId);
+                    if(is_a($role, "AJXP_Role")) $roleObject = $role;
+                    else $roleObject = AuthService::getRole($roleId);
                     $label = $roleObject->getLabel();
                     $label = !empty($label) ? $label : substr($roleId, strlen($rolePrefix));
                     $allRoles[$roleId] = $label;

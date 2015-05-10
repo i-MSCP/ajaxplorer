@@ -55,6 +55,10 @@ class UserMetaManager extends AJXP_AbstractMetaSource
 
         //$messages = ConfService::getMessages();
         $def = $this->getMetaDefinition();
+        foreach($def as $k => &$d){
+            if(isSet($this->fieldsAdditionalData[$k])) $d["data"] = $this->fieldsAdditionalData[$k];
+        }
+        $this->exposeConfigInManifest("meta_definitions", json_encode($def));
         if(!isSet($this->options["meta_visibility"])) $visibilities = array("visible");
         else $visibilities = explode(",", $this->options["meta_visibility"]);
         $editButton = '';
@@ -93,13 +97,13 @@ class UserMetaManager extends AJXP_AbstractMetaSource
                     $col->setAttribute("modifier", "MetaCellRenderer.prototype.starsRateFilter");
                     $col->setAttribute("sortType", "CellSorterValue");
                     $searchables[$key] = $label;
-                    $searchablesRenderers[$key] = "MetaCellRenderer.prototype.starsRateFilter";
+                    $searchablesRenderers[$key] = "MetaCellRenderer.prototype.formPanelStars";
                     break;
                 case "css_label":
                     $col->setAttribute("modifier", "MetaCellRenderer.prototype.cssLabelsFilter");
                     $col->setAttribute("sortType", "CellSorterValue");
                     $searchables[$key] = $label;
-                    $searchablesRenderers[$key] = "MetaCellRenderer.prototype.cssLabelsFilter";
+                    $searchablesRenderers[$key] = "MetaCellRenderer.prototype.formPanelCssLabels";
                     break;
                 case "textarea":
                     $searchables[$key] = $label;
@@ -112,7 +116,11 @@ class UserMetaManager extends AJXP_AbstractMetaSource
                     $col->setAttribute("modifier", "MetaCellRenderer.prototype.selectorsFilter");
                     $col->setAttribute("sortType", "CellSorterValue");
                     $col->setAttribute("metaAdditional", $this->fieldsAdditionalData[$key]);
-                    $searchablesRenderers[$key] = "MetaCellRenderer.prototype.selectorsFilter";
+                    $searchablesRenderers[$key] = "MetaCellRenderer.prototype.formPanelSelectorFilter";
+                    break;
+                case "tags":
+                    $searchables[$key] = $label;
+                    $searchablesRenderers[$key] = "MetaCellRenderer.prototype.formPanelTags";
                     break;
                 default:
                     break;
@@ -238,6 +246,9 @@ class UserMetaManager extends AJXP_AbstractMetaSource
             foreach ($def as $key => $data) {
                 if (isSet($httpVars[$key])) {
                     $newValues[$key] = AJXP_Utils::decodeSecureMagic($httpVars[$key]);
+                    if($data["type"] == "tags"){
+                        $this->updateTags(AJXP_Utils::decodeSecureMagic($httpVars[$key]));
+                    }
                 } else {
                     if (!isset($original)) {
                         $original = $ajxpNode->retrieveMetadata("users_meta", false, AJXP_METADATA_SCOPE_GLOBAL);
@@ -290,15 +301,11 @@ class UserMetaManager extends AJXP_AbstractMetaSource
      */
     public function extractMeta(&$ajxpNode, $contextNode = false, $details = false)
     {
-        //$metadata = $this->metaStore->retrieveMetadata($ajxpNode, "users_meta", false, AJXP_METADATA_SCOPE_GLOBAL);
         $metadata = $ajxpNode->retrieveMetadata("users_meta", false, AJXP_METADATA_SCOPE_GLOBAL);
         if (count($metadata)) {
             // @todo : Should be UTF8-IZED at output only !!??
             // array_map(array("SystemTextEncoding", "toUTF8"), $metadata);
         }
-        $metadata["meta_fields"] = $this->options["meta_fields"];
-        $metadata["meta_labels"] = $this->options["meta_labels"];
-        $metadata["meta_types"] = $this->options["meta_types"];
         $ajxpNode->mergeMetadata($metadata);
 
     }
@@ -346,6 +353,32 @@ class UserMetaManager extends AJXP_AbstractMetaSource
         if ($newNode != null) {
             $this->metaStore->setMetadata($newNode, "users_meta", $oldMeta, false, AJXP_METADATA_SCOPE_GLOBAL);
         }
+    }
+
+    public function listTags($actionName, &$httpVars, &$fileVars){
+
+        HTMLWriter::charsetHeader("application/json");
+        $tags = $this->loadTags();
+        if(empty($tags)) $tags = array();
+        echo json_encode($tags);
+
+    }
+
+    protected function loadTags(){
+        $store = ConfService::getConfStorageImpl();
+        if(!is_a($store, "sqlConfDriver")) return array();
+        $data = array();
+        $store->simpleStoreGet("meta_user_tags", ConfService::getRepository()->getId(), "serial", $data);
+        return $data;
+    }
+
+    protected function updateTags($tagString){
+        $store = ConfService::getConfStorageImpl();
+        if(!is_a($store, "sqlConfDriver")) return;
+        $tags = $this->loadTags();
+        $tags = array_merge($tags, array_map("trim", explode(",", $tagString)));
+        $tags = array_unique($tags);
+        $store->simpleStoreSet("meta_user_tags", ConfService::getRepository()->getId(), array_values($tags), "serial");
     }
 
 }

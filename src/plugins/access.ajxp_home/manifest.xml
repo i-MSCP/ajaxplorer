@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ajxpdriver id="access.ajxp_home" label="CONF_MESSAGE[Welcome Page]" description="CONF_MESSAGE[Welcome Page displaying a list of workspaces]"  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="file:../core.ajaxplorer/ajxp_registry.xsd">
+<ajxpdriver id="access.ajxp_home" enabled="always" label="CONF_MESSAGE[Welcome Page]" description="CONF_MESSAGE[Welcome Page displaying a list of workspaces]"  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="file:../core.ajaxplorer/ajxp_registry.xsd">
 	<client_settings icon="plugins/access.ajxp_home/share.png">
 		<resources>
 			<i18n namespace="user_home" path="plugins/access.ajxp_home/i18n" />
@@ -12,15 +12,15 @@
         <global_param name="SIMPLE_CLICK_WS_OPEN" type="boolean" label="CONF_MESSAGE[Open workspace by simple click]"
                       description="CONF_MESSAGE[Open workspace by simple click instead of double click.]" default="true" expose="true"/>
         <global_param name="ENABLE_GETTING_STARTED" type="boolean"
-                      label="Enable Getting Started" description="Enable addition tabulation to access getting started videos" default="true" expose="true"/>
+                      label="CONF_MESSAGE[Enable Getting Started]" description="CONF_MESSAGE[Enable addition tabulation to access getting started videos]" default="true" expose="true"/>
         <global_param name="URL_APP_IOSAPPSTORE" type="string" expose="true"
-                      label="iOS App URL" description="URL of the iOS application" default="https://itunes.apple.com/us/app/pydio/id709275884?mt=8"/>
+                      label="CONF_MESSAGE[iOS App URL]" description="CONF_MESSAGE[URL of the iOS application]" default="https://itunes.apple.com/us/app/pydio/id709275884?mt=8"/>
         <global_param name="URL_APP_ANDROID" type="string" expose="true"
-                      label="Android App URL" description="URL of the iOS application" default="https://play.google.com/store/apps/details?id=com.pydio.android.Client"/>
+                      label="CONF_MESSAGE[Android App URL]" description="CONF_MESSAGE[URL of the Android application]" default="https://play.google.com/store/apps/details?id=com.pydio.android.Client"/>
         <global_param name="URL_APP_SYNC_WIN" type="string" expose="true"
-                      label="Windows PydioSync URL" description="URL of the iOS application" default="http://pyd.io/apps/pydio-sync/"/>
+                      label="CONF_MESSAGE[Windows PydioSync URL]" description="CONF_MESSAGE[URL of the windows sync application]" default="http://pyd.io/apps/pydio-sync/"/>
         <global_param name="URL_APP_SYNC_MAC" type="string" expose="true"
-                      label="Mac PydioSync URL" description="URL of the iOS application" default="http://pyd.io/apps/pydio-sync/"/>
+                      label="CONF_MESSAGE[Mac PydioSync URL]" description="CONF_MESSAGE[URL of the mac sync application]" default="http://pyd.io/apps/pydio-sync/"/>
 
     </server_settings>
 	<registry_contributions>
@@ -123,11 +123,10 @@
                     <div id="home_left_bar" ajxpClass="AjxpPane" ajxpOptions='{"fit":"height", "fitParent":"orbit_content"}' style="width:420px;">
                         <div id="welcome" style="min-height:94px;"></div>
                         <div id="workspaces_center" ajxpClass="AjxpPane"  ajxpOptions='{"fit":"height", "fitParent":"home_left_bar"}'>
-                            <div id="list_cont" ajxpClass="AjxpPane" ajxpOptions='{"fit":"height", "fitParent":"workspaces_center", "fitMarginBottom":100}'>
+                            <div id="list_cont" ajxpClass="AjxpPane" ajxpOptions='{"fit":"height", "fitParent":"workspaces_center"}'>
                                 <ul id="workspaces_list"></ul>
                             </div>
-                            <div id="workspaces_button">
-                                <input type="checkbox" name="save_ws_choice" id="save_ws_choice" class="disabled" disabled><label for="save_ws_choice">AJXP_MESSAGE[user_home.41]</label>
+                            <div id="workspaces_button" style="display:none;">
                                 <input type="button" name="go_to_ws" id="go_to_ws" value="AJXP_MESSAGE[user_home.42]" class="disabled">
                             </div>
                         </div>

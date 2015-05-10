@@ -109,7 +109,7 @@ class SimpleUploadProcessor extends AJXP_Plugin
                 }
                 AJXP_XMLWriter::close();
                 /* for further implementation */
-                if (!$result["PREVENT_NOTIF"]) {
+                if (!isSet($result["PREVENT_NOTIF"])) {
                     if (isset($result["CREATED_NODE"])) {
                         AJXP_Controller::applyHook("node.change", array(null, $result["CREATED_NODE"], false));
                     } else if (isSet($result["UPDATED_NODE"])) {
@@ -143,10 +143,12 @@ class SimpleUploadProcessor extends AJXP_Plugin
         $newDest = fopen($destStreamURL.$filename, "w");
         for ($i = 0; $i < count($chunks) ; $i++) {
             $part = fopen($destStreamURL.$chunks[$i], "r");
-            while (!feof($part)) {
-                fwrite($newDest, fread($part, 4096));
+            if(is_resource($part)){
+                while (!feof($part)) {
+                    fwrite($newDest, fread($part, 4096));
+                }
+                fclose($part);
             }
-            fclose($part);
             unlink($destStreamURL.$chunks[$i]);
         }
         fclose($newDest);

@@ -86,6 +86,7 @@ class sqlLogDriver extends AbstractLogDriver
         if($query === false){
             throw new Exception("Cannot find query ".$query_name);
         }
+        $pg = ($this->sqlDriver["driver"] == "postgre");
         $start = 0;
         $count = 30;
         if(isSet($httpVars["start"])) $start = intval($httpVars["start"]);
@@ -104,20 +105,34 @@ class sqlLogDriver extends AbstractLogDriver
 
         $q = $query["SQL"];
         $q = str_replace("AJXP_CURSOR_DATE", $dateCursor, $q);
+        if($pg){
+            $q = str_replace("ORDER BY logdate DESC", "ORDER BY DATE(logdate) DESC",$q);
+        }
 
         //$q .= " LIMIT $start, $count";
         $res = dibi::query($q);
         $all = $res->fetchAll();
         $allDates = array();
         foreach($all as $row => &$data){
+            // PG: Recapitalize keys
+            if($pg){
+                foreach($data as $k => $v){
+                    $data[ucfirst($k)] = $v;
+                }
+            }
             if(isSet($data["Date"])){
-                $key = date($dKeyFormat, $data["Date"]->getTimestamp());
-                $data["Date_sortable"] = $data["Date"]->getTimestamp();
+                if(is_a($data["Date"], "DibiDateTime")){
+                    $tStamp = $data["Date"]->getTimestamp();
+                }else {
+                    $tStamp = strtotime($data["Date"]);
+                }
+                $key = date($dKeyFormat, $tStamp);
+                $data["Date_sortable"] = $tStamp;
                 $data["Date"] = $key;
                 $allDates[$key] = true;
             }
-            if(isSet($data["File Name"])){
-                $data["File Name"] = AJXP_Utils::safeBasename($data["File Name"]);
+            if(isSet($data["File"])){
+                $data["File"] = AJXP_Utils::safeBasename($data["File"]);
             }
         }
 
@@ -237,6 +252,24 @@ class sqlLogDriver extends AbstractLogDriver
      */
     public function write2($level, $ip, $user, $source, $prefix, $message)
     {
+        if($prefix == "Log In" && $message="context=API"){
+            // Limit the number of logs
+            $test = dibi::query('SELECT [logdate] FROM [ajxp_log] WHERE [user]=%s AND [message]=%s AND [params]=%s ORDER BY [logdate] DESC %lmt %ofs', $user, $prefix, $message, 1, 0);
+            $lastInsert = $test->fetchSingle();
+            $now = new DateTime('NOW');
+            if(is_a($lastInsert, "DibiDateTime")){
+                $lastTimestamp = $lastInsert->getTimestamp();
+            }else{
+                $lastTimestamp = strtotime($lastInsert);
+            }
+            if($lastInsert !== false && $now->getTimestamp() - $lastTimestamp < 60 * 60){
+                // IGNORING, LIMIT API LOGINS TO ONE PER HOUR, OR IT WILL FILL THE LOGS
+                return;
+            }
+        }
+        if(AJXP_Utils::detectXSS($message)){
+            $message = "XSS Detected in Message!";
+        }
         $log_row = Array(
             'logdate'   => new DateTime('NOW'),
             'remote_ip' => $this->inet_ptod($ip),
@@ -313,7 +346,7 @@ class sqlLogDriver extends AbstractLogDriver
                         "ajxp_mime"         => "datagrid",
                         "grid_datasource"   => "get_action=ls&dir=".urlencode($path),
                         "grid_header_title" => "Application Logs for $date",
-                        "grid_actions"      => "refresh,copy_as_text"
+                        "grid_actions"      => "refresh,filter,copy_as_text"
                     );
                     $xml_strings[$date] = AJXP_XMLWriter::renderNode($path, $date, true, $metadata, true, false);
                 }

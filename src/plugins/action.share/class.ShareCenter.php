@@ -213,6 +213,7 @@ class ShareCenter extends AJXP_Plugin
                 } else {
                     $httpVars["expiration"] = min($expiration,$maxexpiration);
                 }
+                $forcePassword = $this->getFilteredOption("SHARE_FORCE_PASSWORD", $this->repository->getId());
                 $httpHash = null;
                 $originalHash = null;
 
@@ -234,6 +235,13 @@ class ShareCenter extends AJXP_Plugin
                         if($httpVars["simple_share_type"] == "private" && !isSet($httpVars["guest_user_pass"])){
                             throw new Exception("Please provide a guest_user_pass for private link");
                         }
+                    }
+                    if($forcePassword && (
+                        (isSet($httpVars["create_guest_user"]) && $httpVars["create_guest_user"] == "true" && empty($httpVars["guest_user_pass"]))
+                        || (isSet($httpVars["guest_user_id"]) && isSet($httpVars["guest_user_pass"]) && $httpVars["guest_user_pass"] == "")
+                        )){
+                        $mess = ConfService::getMessages();
+                        throw new Exception($mess["share_center.175"]);
                     }
                     $res = $this->createSharedMinisite($httpVars, $this->repository, $this->accessDriver);
                     if (!is_array($res)) {
@@ -581,7 +589,7 @@ class ShareCenter extends AJXP_Plugin
         $result = array();
         if($direction !== "UP"){
             $upmetas = array();
-            $node->collectMetadataInParents("ajxp_shared", true, AJXP_METADATA_SCOPE_REPOSITORY, false, $upmetas);
+            $node->collectMetadataInParents("ajxp_shared", AJXP_METADATA_ALLUSERS, AJXP_METADATA_SCOPE_REPOSITORY, false, $upmetas);
             foreach($upmetas as $metadata){
                 if (is_array($metadata) && !empty($metadata["shares"])) {
                     foreach($metadata["shares"] as $sId => $sData){
@@ -596,6 +604,7 @@ class ShareCenter extends AJXP_Plugin
                         $sharedPath = substr($node->getPath(), strlen($sharedNode->getPath()));
                         $sharedNodeUrl = $node->getScheme() . "://".$wsId.$sharedPath;
                         $result[$wsId] = array(new AJXP_Node($sharedNodeUrl), "DOWN");
+                        $this->logDebug('MIRROR NODES', 'Found shared in parent - register node '.$sharedNodeUrl);
                     }
                 }
             }
@@ -604,11 +613,18 @@ class ShareCenter extends AJXP_Plugin
             if($node->getRepository()->hasParent()){
                 $parentRepoId = $node->getRepository()->getParentId();
                 $currentRoot = $node->getRepository()->getOption("PATH");
-                $parentRoot = ConfService::getRepositoryById($parentRepoId)->getOption("PATH");
+                $owner = $node->getRepository()->getOwner();
+                $resolveUser = null;
+                if($owner != null){
+                    $resolveUser = ConfService::getConfStorageImpl()->createUserObject($owner);
+                }
+                $parentRoot = ConfService::getRepositoryById($parentRepoId)->getOption("PATH", false, $resolveUser);
                 $relative = substr($currentRoot, strlen($parentRoot));
                 $parentNodeURL = $node->getScheme()."://".$parentRepoId.$relative.$node->getPath();
                 $this->logDebug("action.share", "Should trigger on ".$parentNodeURL);
-                $result[$parentRepoId] = array(new AJXP_Node($parentNodeURL), "UP");
+                $parentNode = new AJXP_Node($parentNodeURL);
+                if($owner != null) $parentNode->setUser($owner);
+                $result[$parentRepoId] = array($parentNode, "UP");
             }
         }
         return $result;
@@ -632,14 +648,26 @@ class ShareCenter extends AJXP_Plugin
                 if(isSet($toMirrors[$repoId])){
                     list($tNode, $tDirection) = $toMirrors[$repoId];
                     unset($toMirrors[$repoId]);
-                    AJXP_Controller::applyHook("node.change", array($fNode, $tNode, $copy, $fDirection), true);
+                    try{
+                        AJXP_Controller::applyHook("node.change", array($fNode, $tNode, $copy, $fDirection), true);
+                    }catch(Exception $e){
+                        $this->logError(__FUNCTION__, "Error while applying node.change hook (".$e->getMessage().")");
+                    }
                 }else{
+                    try{
                     AJXP_Controller::applyHook("node.change", array($fNode, null, $copy, $fDirection), true);
+                    }catch(Exception $e){
+                        $this->logError(__FUNCTION__, "Error while applying node.change hook (".$e->getMessage().")");
+                    }
                 }
             }
             foreach($toMirrors as $mirror){
                 list($tNode, $tDirection) = $mirror;
+                try{
                 AJXP_Controller::applyHook("node.change", array(null, $tNode, $copy, $tDirection), true);
+                }catch(Exception $e){
+                    $this->logError(__FUNCTION__, "Error while applying node.change hook (".$e->getMessage().")");
+                }
             }
         }
 
@@ -861,8 +889,6 @@ class ShareCenter extends AJXP_Plugin
         $copy->addOption("PATH", $repository->getOption("PATH"));
         $data["REPOSITORY"] = $copy;
         if ($data["ACTION"] == "") $data["ACTION"] = "download";
-        // Create a random key
-        $data["FINAL_KEY"] = md5(mt_rand().time());
 
         try{
             $hash = $this->getShareStore()->storeShare($repository->getId(), $data, "publiclet");
@@ -992,11 +1018,17 @@ class ShareCenter extends AJXP_Plugin
         }
         if(!isSet($templateName)){
             $repoObject = ConfService::getRepositoryById($repository);
-            $filter = $repoObject->getContentFilter();
-            if(!empty($filter) && count($filter->virtualPaths) == 1){
+            if(!is_object($repoObject)){
+                $mess = ConfService::getMessages();
+                $error = $mess["share_center.166"];
                 $templateName = "ajxp_unique_strip";
             }else{
-                $templateName = "ajxp_shared_folder";
+                $filter = $repoObject->getContentFilter();
+                if(!empty($filter) && count($filter->virtualPaths) == 1){
+                    $templateName = "ajxp_unique_strip";
+                }else{
+                    $templateName = "ajxp_shared_folder";
+                }
             }
         }
         // UPDATE TEMPLATE
@@ -1351,7 +1383,20 @@ class ShareCenter extends AJXP_Plugin
                 $ID = $userId;
             }else if(strpos($rId, "AJXP_GRP_/") === 0){
                 if(empty($loadedGroups)){
+                    $displayAll = ConfService::getCoreConf("CROSSUSERS_ALLGROUPS_DISPLAY", "conf");
+                    if($displayAll){
+                        AuthService::setGroupFiltering(false);
+                    }
                     $loadedGroups = AuthService::listChildrenGroups();
+                    if($displayAll){
+                        AuthService::setGroupFiltering(true);
+                    }else{
+                        $baseGroup = AuthService::filterBaseGroup("/");
+                        foreach($loadedGroups as $loadedG => $loadedLabel){
+                            unset($loadedGroups[$loadedG]);
+                            $loadedGroups[rtrim($baseGroup, "/")."/".ltrim($loadedG, "/")] = $loadedLabel;
+                        }
+                    }
                 }
                 $groupId = substr($rId, strlen('AJXP_GRP_'));
                 if(isSet($loadedGroups[$groupId])) {
@@ -1725,7 +1770,7 @@ class ShareCenter extends AJXP_Plugin
                 if (!AuthService::userExists($u) && !isSet($httpVars["user_pass_".$index])) {
                     $index++;
                     continue;
-                } else if (AuthService::userExists($u) && isSet($httpVars["user_pass_".$index])) {
+                } else if (AuthService::userExists($u, "w") && isSet($httpVars["user_pass_".$index])) {
                     throw new Exception("User $u already exists, please choose another name.");
                 }
                 if(!AuthService::userExists($u, "r") && !empty($prefix)
@@ -1834,9 +1879,12 @@ class ShareCenter extends AJXP_Plugin
         } else {
             if ($repository->getOption("META_SOURCES")) {
                 $options["META_SOURCES"] = $repository->getOption("META_SOURCES");
-                foreach ($options["META_SOURCES"] as $index => $data) {
+                foreach ($options["META_SOURCES"] as $index => &$data) {
                     if (isSet($data["USE_SESSION_CREDENTIALS"]) && $data["USE_SESSION_CREDENTIALS"] === true) {
                         $options["META_SOURCES"][$index]["ENCODED_CREDENTIALS"] = AJXP_Safe::getEncodedCredentialString();
+                    }
+                    if($index == "meta.syncable" && $data["REPO_SYNCABLE"] === true ){
+                        $data["REQUIRES_INDEXATION"] = true;
                     }
                 }
             }
@@ -1878,6 +1926,11 @@ class ShareCenter extends AJXP_Plugin
                         $userObject->personalRole->setAcl($newRepo->getUniqueId(), "");
                         $userObject->save("superuser");
                     }
+                    $this->watcher->removeWatchFromFolder(
+                        new AJXP_Node($this->urlBase.$file),
+                        $user,
+                        true
+                    );
                 }
             }
             $originalGroups = array_keys($currentRights["GROUPS"]);
@@ -1898,7 +1951,7 @@ class ShareCenter extends AJXP_Plugin
                 // check that it's a child user
                 $userObject = $confDriver->createUserObject($userName);
             } else {
-                if (ConfService::getAuthDriverImpl()->getOption("TRANSMIT_CLEAR_PASS")) {
+                if (ConfService::getAuthDriverImpl()->getOptionAsBool("TRANSMIT_CLEAR_PASS")) {
                     $pass = $uPasses[$userName];
                 } else {
                     $pass = md5($uPasses[$userName]);
@@ -2455,6 +2508,10 @@ class ShareCenter extends AJXP_Plugin
                 $sharedEntries = $this->computeSharedRepositoryAccessRights($repoId, true, null);
             }
 
+            $cFilter = $repo->getContentFilter();
+            if(!empty($cFilter)){
+                $cFilter = $cFilter->toArray();
+            }
             $jsonData = array(
                 "repositoryId"  => $repoId,
                 "users_number"  => AuthService::countUsersForRepository($repoId),
@@ -2463,7 +2520,7 @@ class ShareCenter extends AJXP_Plugin
                 "entries"       => $sharedEntries,
                 "element_watch" => $elementWatch,
                 "repository_url"=> AJXP_Utils::detectServerURL(true)."?goto=". $repo->getSlug() ."/",
-                "content_filter"=> $repo->getContentFilter()
+                "content_filter"=> $cFilter
             );
             if (isSet($minisiteData)) {
                 if(!empty($minisiteData["DOWNLOAD_LIMIT"]) && !$dlDisabled){

@@ -143,6 +143,7 @@ class BootConfLoader extends AbstractConfDriver
         $this->_loadPluginConfig("core.auth", $coreAuth);
         if(!isSet($coreConf["UNIQUE_INSTANCE_CONFIG"])) $coreConf["UNIQUE_INSTANCE_CONFIG"] = array();
         if(!isSet($coreAuth["MASTER_INSTANCE_CONFIG"])) $coreAuth["MASTER_INSTANCE_CONFIG"] = array();
+        $coreConf["AJXP_CLI_SECRET_KEY"] = AJXP_Utils::generateRandomString(24, true);
 
         $storageType = $data["STORAGE_TYPE"]["type"];
         if ($storageType == "db") {
@@ -166,7 +167,7 @@ class BootConfLoader extends AbstractConfDriver
             ));
 
             // INSTALL ALL SQL TABLES
-            $sqlPlugs = array("conf.sql", "auth.sql", "feed.sql", "log.sql", "mq.sql", "meta.syncable");
+            $sqlPlugs = array("conf.sql", "auth.sql", "feed.sql", "log.sql", "meta.syncable");
             foreach ($sqlPlugs as $plugId) {
                 $plug = AJXP_PluginsService::findPluginById($plugId);
                 $plug->installSQLTables(array("SQL_DRIVER" => $data["STORAGE_TYPE"]["db_type"]));
@@ -302,9 +303,7 @@ class BootConfLoader extends AbstractConfDriver
         }
 
 
-        @unlink(AJXP_PLUGINS_CACHE_FILE);
-        @unlink(AJXP_PLUGINS_REQUIRES_FILE);
-        @unlink(AJXP_PLUGINS_MESSAGES_FILE);
+        AJXP_PluginsService::clearPluginsCache();
         AJXP_Utils::setApplicationFirstRunPassed();
 
         if(isSet($htAccessToUpdate)){
