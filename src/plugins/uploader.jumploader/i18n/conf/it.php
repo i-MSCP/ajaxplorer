@@ -1,6 +1,6 @@
 <?php
 /*
-* Copyright 2007-2014 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
+* Copyright 2007-2013 Charles du Jeu - Abstrium SAS <team (at) pyd.io>
 * This file is part of Pydio.
 *
 * Pydio is free software: you can redistribute it and/or modify
@@ -19,10 +19,7 @@
 * The latest code can be found at <http://pyd.io/>.
 */
 $mess=array(
-"MQ SQL" => "MQ SQL",
-"Store persistant and worker queues in database" => "Store persistant and worker queues in database",
-"Install SQL Tables" => "Install SQL Tables",
-"SQL Tables" => "SQL Tables",
-"SQL Driver" => "SQL Driver",
-"SQL Connexion Parameters" => "SQL Connection Parameters",
+"Jumploader" => "Java (file grandi)",
+"Third-party JumpLoader JAVA applet allowing to upload folders, chunk big files, etc." => "Applet JAVA di terze parti (JumpLoader); consente di caricare cartelle, spezzare file di grandi dimensioni ecc.",
+"Install Applet" => "Installa Applet",
 );

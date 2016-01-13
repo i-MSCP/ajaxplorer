@@ -19,10 +19,7 @@
 * The latest code can be found at <http://pyd.io/>.
 */
 $mess=array(
-"MQ SQL" => "MQ SQL",
-"Store persistant and worker queues in database" => "Store persistant and worker queues in database",
-"Install SQL Tables" => "Install SQL Tables",
-"SQL Tables" => "SQL Tables",
-"SQL Driver" => "SQL Driver",
-"SQL Connexion Parameters" => "SQL Connection Parameters",
+"PLUploader" => "PLUploader",
+"PlUpload uploader support. Requires downloading and installing the PLupload sources." => "Supporto per PlUpload. Richiede lo scaricamento e l'installazione dei sorgenti di PLupload.",
 );
+
